@@ -2059,16 +2059,22 @@ def plot_3d_multi_timeframe(df, col_map, t):
 def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
     if "close" not in col_map or "volume" not in col_map:
         return None
-    close = df[col_map["close"]]
-    vol = df[col_map["volume"]]
-    price_bins = pd.cut(close, bins=bins)
-    profile = vol.groupby(price_bins, observed=True).sum()
-    x_vals = profile.index.mid.astype(str).tolist()
-    fig = go.Figure(data=[go.Surface(
-        x=x_vals, y=[0, 0], z=profile.values.reshape(1, -1),
-        colorscale="Turbo", showscale=True, colorbar=dict(title="Volume")
-    )])
-    return fig_update(fig, t, "3D Volume Profile", 450)
+    try:
+        close = df[col_map["close"]]
+        vol = df[col_map["volume"]]
+        price_bins = pd.cut(close, bins=bins, duplicates="drop")
+        profile = vol.groupby(price_bins, observed=True).sum()
+        if hasattr(profile.index, 'mid'):
+            x_vals = [str(i.mid) for i in profile.index]
+        else:
+            x_vals = list(range(len(profile)))
+        fig = go.Figure(data=[go.Surface(
+            x=x_vals, y=[0, 0], z=profile.values.reshape(1, -1),
+            colorscale="Turbo", showscale=True, colorbar=dict(title="Volume")
+        )])
+        return fig_update(fig, t, "3D Volume Profile", 450)
+    except Exception:
+        return None
 
 
 def plot_3d_heatmap_3d(df, close_col, t):
