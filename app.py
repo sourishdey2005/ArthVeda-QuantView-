@@ -1745,6 +1745,348 @@ def plot_beta(df, close_col, market_col, t, window=60):
 
 
 # ─────────────────────────────────────────────
+# ADDITIONAL CANDLESTICK CHARTS (10 more)
+# ─────────────────────────────────────────────
+
+def plot_hlc(df, col_map, t, symbol=None):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    d = df[col_map["date"]]
+    fig = go.Figure(data=[go.Candlestick(
+        x=d,
+        open=df[col_map["close"]],
+        high=df[col_map["high"]],
+        low=df[col_map["low"]],
+        close=df[col_map["close"]],
+        increasing_line_color=t["green"],
+        decreasing_line_color=t["red"],
+        name="HLC"
+    )])
+    fig.update_layout(xaxis_rangeslider_visible=False)
+    return fig_update(fig, t, f"HLC Chart" + (f" — {symbol}" if symbol else ""), 460)
+
+
+def plot_ohlc_wide(df, col_map, t, symbol=None):
+    if not all(k in col_map for k in ["open", "high", "low", "close"]):
+        return None
+    d = df[col_map["date"]]
+    fig = go.Figure(data=[go.Candlestick(
+        x=d,
+        open=df[col_map["open"]],
+        high=df[col_map["high"]],
+        low=df[col_map["low"]],
+        close=df[col_map["close"]],
+        increasing_line_color=t["cyan"],
+        decreasing_line_color=t["pink"],
+        name="Wide OHLC"
+    )])
+    fig.update_layout(xaxis_rangeslider_visible=False)
+    fig.update_traces(marker_line_width=1.5, marker_line_color=t["border"])
+    return fig_update(fig, t, f"Wide OHLC Chart" + (f" — {symbol}" if symbol else ""), 480)
+
+
+def plot_candle_colors(df, col_map, t, symbol=None):
+    if not all(k in col_map for k in ["open", "close"]):
+        return None
+    d = df[col_map["date"]]
+    colors = [t["green"] if c >= o else t["red"] for c, o in zip(df[col_map["close"]], df[col_map["open"]])]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=d, y=df[col_map["close"]] - df[col_map["open"]],
+                        marker_color=colors, name="Candle Body"))
+    return fig_update(fig, t, f"Candle Body Colors" + (f" — {symbol}" if symbol else ""), 400)
+
+
+def plot_price_range_bars(df, col_map, t, symbol=None):
+    if not all(k in col_map for k in ["high", "low"]):
+        return None
+    d = df[col_map["date"]]
+    range_bars = df[col_map["high"]] - df[col_map["low"]]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=d, y=range_bars, marker_color=t["purple"], name="Range"))
+    return fig_update(fig, t, f"Price Range Bars" + (f" — {symbol}" if symbol else ""), 400)
+
+
+def plot_point_figure(df, close_col, t, symbol=None, boxes=3):
+    close = df[close_col]
+    pgf = []
+    direction = 0
+    last_price = close.iloc[0]
+    for price in close:
+        if direction == 0:
+            if price >= last_price + boxes:
+                direction = 1
+                pgf.append(price)
+                last_price = price
+            elif price <= last_price - boxes:
+                direction = -1
+                pgf.append(price)
+                last_price = price
+        elif direction == 1:
+            if price >= last_price + boxes:
+                pgf[-1] = price
+                last_price = price
+            elif price <= last_price - boxes:
+                direction = -1
+                pgf.append(price)
+                last_price = price
+        else:
+            if price <= last_price - boxes:
+                pgf[-1] = price
+                last_price = price
+            elif price >= last_price + boxes:
+                direction = 1
+                pgf.append(price)
+                last_price = price
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=pgf, mode="lines+markers", name="P&F",
+                            line=dict(color=t["teal"], width=1.5),
+                            marker=dict(size=4)))
+    return fig_update(fig, t, f"Point & Figure ({boxes})" + (f" — {symbol}" if symbol else ""), 450)
+
+
+def plot_kagi(df, close_col, t, symbol=None, reversal=3):
+    close = df[close_col]
+    kagi = [close.iloc[0]]
+    direction = 0
+    threshold = close.std() * reversal / 100
+    for price in close[1:]:
+        if direction == 0:
+            if price > kagi[-1] + threshold:
+                direction = 1
+                kagi.append(price)
+            elif price < kagi[-1] - threshold:
+                direction = -1
+                kagi.append(price)
+        elif direction == 1:
+            if price > kagi[-1]:
+                kagi[-1] = price
+            elif price < kagi[-1] - threshold:
+                direction = -1
+                kagi.append(price)
+        else:
+            if price < kagi[-1]:
+                kagi[-1] = price
+            elif price > kagi[-1] + threshold:
+                direction = 1
+                kagi.append(price)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=kagi, mode="lines", name="Kagi",
+                            line=dict(color=t["lime"], width=2)))
+    return fig_update(fig, t, f"Kagi Chart ({reversal}%)" + (f" — {symbol}" if symbol else ""), 450)
+
+
+def plot_range_bars(df, close_col, t, symbol=None, bar_size=1):
+    close = df[close_col]
+    range_bars = []
+    bar = [close.iloc[0]]
+    for price in close[1:]:
+        if abs(price - bar[0]) >= bar_size:
+            range_bars.append(bar[-1])
+            bar = [price]
+        else:
+            bar = [bar[0], price]
+    if bar:
+        range_bars.append(bar[-1])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=range_bars, mode="lines", name="Range Bars",
+                            line=dict(color=t["orange"], width=1.5)))
+    return fig_update(fig, t, f"Range Bars ({bar_size})" + (f" — {symbol}" if symbol else ""), 450)
+
+
+def plot_dollar_bars(df, close_col, vol_col, t, symbol=None, dollar_threshold=10000):
+    close = df[close_col]
+    vol = df[vol_col] if vol_col else pd.Series(np.ones(len(close)))
+    dollar_volume = close * vol
+    bars = []
+    cumulative = 0
+    bar = [close.iloc[0]]
+    for i in range(len(close)):
+        cumulative += dollar_volume.iloc[i]
+        if cumulative >= dollar_threshold:
+            bars.append(bar[-1])
+            cumulative = 0
+            bar = [close.iloc[i]]
+        else:
+            bar = [bar[0], close.iloc[i]]
+    if bar and cumulative > 0:
+        bars.append(bar[-1])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=bars, mode="lines", name="Dollar Bars",
+                            line=dict(color=t["pink"], width=1.5)))
+    return fig_update(fig, t, f"Dollar Bars (${dollar_threshold/1000}k)" + (f" — {symbol}" if symbol else ""), 450)
+
+
+def plot_volumetric_bars(df, close_col, vol_col, t, symbol=None, vol_threshold=1000000):
+    close = df[close_col]
+    vol = df[vol_col] if vol_col else pd.Series(np.ones(len(close)))
+    bars = []
+    cumulative_vol = 0
+    bar = [close.iloc[0]]
+    for i in range(len(close)):
+        cumulative_vol += vol.iloc[i]
+        if cumulative_vol >= vol_threshold:
+            bars.append(bar[-1])
+            cumulative_vol = 0
+            bar = [close.iloc[i]]
+        else:
+            bar = [bar[0], close.iloc[i]]
+    if bar and cumulative_vol > 0:
+        bars.append(bar[-1])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=bars, mode="lines", name="Volume Bars",
+                            line=dict(color=t["cyan"], width=1.5)))
+    return fig_update(fig, t, f"Volumetric Bars ({vol_threshold/1000000:.1f}M)" + (f" — {symbol}" if symbol else ""), 450)
+
+
+def plot_ticks(df, close_col, t, symbol=None, n_ticks=50):
+    close = df[close_col]
+    if len(close) < n_ticks:
+        n_ticks = len(close) // 2
+    ticks = close.iloc[::max(1, len(close) // n_ticks)]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ticks, mode="lines+markers", name="Ticks",
+                            line=dict(color=t["accent"], width=1),
+                            marker=dict(size=3)))
+    return fig_update(fig, t, f"Tick Chart ({n_ticks})" + (f" — {symbol}" if symbol else ""), 400)
+
+
+# ─────────────────────────────────────────────
+# 3D VISUALIZATIONS (10 more)
+# ─────────────────────────────────────────────
+
+def plot_3d_price_surface(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+        return None
+    df2 = df.copy()
+    df2["Price"] = (df2[col_map["high"]] + df2[col_map["low"]] + df2[col_map["close"]]) / 3
+    df2["Time"] = range(len(df2))
+    df2["Hour"] = df2[col_map["date"]].dt.hour if hasattr(df2[col_map["date"]], 'dt') else df2["Time"] % 24
+    fig = go.Figure(data=[go.Surface(
+        x=df2["Hour"], y=df2["Time"], z=df2["Price"].values.reshape(-1, 1),
+        colorscale="Viridis", showscale=False
+    )])
+    return fig_update(fig, t, "3D Price Surface", 500)
+
+
+def plot_3d_volume_price(df, col_map, t):
+    if not all(k in col_map for k in ["close", "volume"]):
+        return None
+    df2 = df.copy()
+    df2["Time"] = range(len(df2))
+    fig = go.Figure(data=[go.Surface(
+        x=df2["Time"], y=df2[col_map["close"]], z=df2[col_map["volume"]].values.reshape(-1, 1),
+        colorscale="Plasma", showscale=False
+    )])
+    return fig_update(fig, t, "3D Volume-Price Surface", 500)
+
+
+def plot_3d_returns_evolution(df, close_col, t):
+    returns = df[close_col].pct_change().fillna(0) * 100
+    time_idx = range(len(returns))
+    fig = go.Figure(data=[go.Surface(
+        x=list(time_idx), y=[0], z=returns.values.reshape(1, -1),
+        colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
+    )])
+    return fig_update(fig, t, "3D Returns Evolution", 450)
+
+
+def plot_3d_rolling_std(df, close_col, t, window=20):
+    rolling_std = df[close_col].rolling(window).std()
+    rolling_mean = df[close_col].rolling(window).mean()
+    time_idx = range(len(rolling_std))
+    fig = go.Figure(data=[go.Surface(
+        x=list(time_idx), y=rolling_mean, z=rolling_std.values.reshape(1, -1),
+        colorscale="Blues", showscale=False
+    )])
+    return fig_update(fig, t, f"3D Rolling Std Dev ({window}d)", 450)
+
+
+def plot_3d_correlation_surface(df, close_col, t):
+    returns = df[close_col].pct_change().dropna()
+    lags = range(1, 31)
+    corr_surface = np.zeros((1, len(lags)))
+    for lag in lags:
+        corr_surface[0, lag-1] = returns.autocorr(lag=lag)
+    fig = go.Figure(data=[go.Surface(
+        x=lags, y=[0], z=corr_surface,
+        colorscale="IceFire", showscale=True, colorbar=dict(title="Corr")
+    )])
+    return fig_update(fig, t, "3D Autocorrelation Surface", 450)
+
+
+def plot_3d_price_distribution(df, close_col, t, bins=30):
+    hist, bin_edges = np.histogram(df[close_col].dropna(), bins=bins)
+    x = bin_edges[:-1]
+    y = [0] * len(x)
+    fig = go.Figure(data=[go.Surface(
+        x=x, y=y, z=hist.reshape(1, -1),
+        colorscale="Magma", showscale=False
+    )])
+    return fig_update(fig, t, f"3D Price Distribution ({bins} bins)", 450)
+
+
+def plot_3d_volatility_cone(df, close_col, t):
+    returns = df[close_col].pct_change().dropna()
+    time_horizons = [1, 5, 10, 20, 30, 60]
+    volatilities = []
+    for h in time_horizons:
+        vol = returns.rolling(h).std() * np.sqrt(252) * 100
+        volatilities.append(vol.dropna().values[:min(100, len(vol.dropna()))])
+    max_len = max(len(v) for v in volatilities)
+    padded = np.array([np.pad(v, (0, max_len - len(v)), constant_values=np.nan) for v in volatilities])
+    fig = go.Figure(data=[go.Surface(
+        x=list(range(max_len)), y=time_horizons, z=padded,
+        colorscale="Viridis", showscale=True, colorbar=dict(title="Vol %")
+    )])
+    return fig_update(fig, t, "3D Volatility Cone", 500)
+
+
+def plot_3d_multi_timeframe(df, col_map, t):
+    if "close" not in col_map:
+        return None
+    close = df[col_map["close"]]
+    sma_5 = close.rolling(5).mean()
+    sma_20 = close.rolling(20).mean()
+    sma_50 = close.rolling(50).mean()
+    time_idx = range(len(close))
+    fig = go.Figure(data=[go.Surface(
+        x=list(time_idx), y=[0, 1, 2], 
+        z=np.array([sma_5.values, sma_20.values[:len(sma_5)], sma_50.values[:len(sma_5)]]),
+        colorscale="Twilight", showscale=False
+    )])
+    return fig_update(fig, t, "3D Multi-Timeframe MA", 500)
+
+
+def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
+    if "close" not in col_map or "volume" not in col_map:
+        return None
+    close = df[col_map["close"]]
+    vol = df[col_map["volume"]]
+    price_bins = pd.cut(close, bins=bins)
+    profile = vol.groupby(price_bins, observed=True).sum()
+    fig = go.Figure(data=[go.Surface(
+        x=profile.index.mid.astype(str), y=[0], z=profile.values.reshape(1, -1),
+        colorscale="Turbo", showscale=True, colorbar=dict(title="Volume")
+    )])
+    return fig_update(fig, t, "3D Volume Profile", 450)
+
+
+def plot_3d_heatmap_3d(df, close_col, t):
+    df2 = df.copy()
+    df2["Year"] = df2[df2.columns[0]].dt.year if hasattr(df2[df2.columns[0]], 'dt') else 0
+    df2["Month"] = df2[df2.columns[0]].dt.month if hasattr(df2[df2.columns[0]], 'dt') else 0
+    df2["Return"] = df2[close_col].pct_change()
+    monthly_ret = df2.groupby(["Year", "Month"])["Return"].sum().unstack() * 100
+    if monthly_ret.empty:
+        return None
+    fig = go.Figure(data=[go.Surface(
+        x=monthly_ret.columns, y=monthly_ret.index, z=monthly_ret.values,
+        colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
+    )])
+    return fig_update(fig, t, "3D Monthly Returns Heatmap", 500)
+
+
+# ─────────────────────────────────────────────
 # SUMMARY STATISTICS
 # ─────────────────────────────────────────────
 
@@ -2017,6 +2359,8 @@ def main():
         "Technical Indicators",
         "Trend & Pattern",
         "Risk & Outliers",
+        "Candlestick Charts",
+        "3D Visualizations",
         "Multi-Symbol",
         "Export",
     ])
@@ -2411,8 +2755,109 @@ def main():
             else:
                 st.success("No significant price outliers detected.")
 
-    # ── 8. MULTI-SYMBOL ───────────────────────
+    # ── 9. CANDLESTICK CHARTS ───────────────────
     with tabs[7]:
+        if close_col is None or date_col is None:
+            st.info("Close/Date columns required.")
+        elif not all(k in col_map for k in ["open", "high", "low", "close"]):
+            st.info("OHLC data required for candlestick charts.")
+        else:
+            st.markdown(f"<div class='section-header'>HLC Chart</div>", unsafe_allow_html=True)
+            hlc_fig = plot_hlc(df_primary, col_map, t, primary_sym)
+            if hlc_fig:
+                st.plotly_chart(hlc_fig, use_container_width=True)
+            
+            st.markdown(f"<div class='section-header'>Wide OHLC Chart</div>", unsafe_allow_html=True)
+            ohlc_fig = plot_ohlc_wide(df_primary, col_map, t, primary_sym)
+            if ohlc_fig:
+                st.plotly_chart(ohlc_fig, use_container_width=True)
+            
+            st.markdown(f"<div class='section-header'>Candle Body Colors</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_candle_colors(df_primary, col_map, t, primary_sym), use_container_width=True)
+            
+            st.markdown(f"<div class='section-header'>Price Range Bars</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_price_range_bars(df_primary, col_map, t, primary_sym), use_container_width=True)
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"<div class='section-header'>Point & Figure</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_point_figure(df_primary, close_col, t, primary_sym), use_container_width=True)
+            with c2:
+                st.markdown(f"<div class='section-header'>Kagi Chart</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_kagi(df_primary, close_col, t, primary_sym), use_container_width=True)
+            
+            c3, c4 = st.columns(2)
+            with c3:
+                st.markdown(f"<div class='section-header'>Range Bars</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_range_bars(df_primary, close_col, t, primary_sym), use_container_width=True)
+            with c4:
+                st.markdown(f"<div class='section-header'>Dollar Bars</div>", unsafe_allow_html=True)
+                if vol_col:
+                    st.plotly_chart(plot_dollar_bars(df_primary, close_col, vol_col, t, primary_sym), use_container_width=True)
+            
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown(f"<div class='section-header'>Volumetric Bars</div>", unsafe_allow_html=True)
+                if vol_col:
+                    st.plotly_chart(plot_volumetric_bars(df_primary, close_col, vol_col, t, primary_sym), use_container_width=True)
+            with c6:
+                st.markdown(f"<div class='section-header'>Tick Chart</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_ticks(df_primary, close_col, t, primary_sym), use_container_width=True)
+
+    # ── 10. 3D VISUALIZATIONS ───────────────────
+    with tabs[8]:
+        if close_col is None:
+            st.info("Close column required.")
+        else:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"<div class='section-header'>3D Price Surface</div>", unsafe_allow_html=True)
+                ps_fig = plot_3d_price_surface(df_primary, col_map, t)
+                if ps_fig:
+                    st.plotly_chart(ps_fig, use_container_width=True)
+            with c2:
+                st.markdown(f"<div class='section-header'>3D Volume-Price</div>", unsafe_allow_html=True)
+                vp_fig = plot_3d_volume_price(df_primary, col_map, t)
+                if vp_fig:
+                    st.plotly_chart(vp_fig, use_container_width=True)
+            
+            c3, c4 = st.columns(2)
+            with c3:
+                st.markdown(f"<div class='section-header'>3D Returns Evolution</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_3d_returns_evolution(df_primary, close_col, t), use_container_width=True)
+            with c4:
+                st.markdown(f"<div class='section-header'>3D Rolling Std Dev</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_3d_rolling_std(df_primary, close_col, t), use_container_width=True)
+            
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown(f"<div class='section-header'>3D Autocorrelation</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_3d_correlation_surface(df_primary, close_col, t), use_container_width=True)
+            with c6:
+                st.markdown(f"<div class='section-header'>3D Price Distribution</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_3d_price_distribution(df_primary, close_col, t), use_container_width=True)
+            
+            st.markdown(f"<div class='section-header'>3D Volatility Cone</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_3d_volatility_cone(df_primary, close_col, t), use_container_width=True)
+            
+            st.markdown(f"<div class='section-header'>3D Multi-Timeframe MA</div>", unsafe_allow_html=True)
+            mt_fig = plot_3d_multi_timeframe(df_primary, col_map, t)
+            if mt_fig:
+                st.plotly_chart(mt_fig, use_container_width=True)
+            
+            c7, c8 = st.columns(2)
+            with c7:
+                st.markdown(f"<div class='section-header'>3D Volume Profile</div>", unsafe_allow_html=True)
+                if vol_col:
+                    st.plotly_chart(plot_3d_volume_profile_3d(df_primary, col_map, t), use_container_width=True)
+            with c8:
+                st.markdown(f"<div class='section-header'>3D Monthly Returns</div>", unsafe_allow_html=True)
+                mr_fig = plot_3d_heatmap_3d(df_primary, close_col, t)
+                if mr_fig:
+                    st.plotly_chart(mr_fig, use_container_width=True)
+
+    # ── 11. MULTI-SYMBOL ───────────────────────
+    with tabs[9]:
         if not is_multi:
             st.info("Multi-symbol views require a dataset with multiple symbols (Symbol/Ticker column).")
         elif close_col is None or date_col is None:
@@ -2443,8 +2888,8 @@ def main():
             if not pivot_ret.empty and pivot_ret.shape[1] > 1:
                 st.plotly_chart(plot_correlation_heatmap(pivot_ret, t), use_container_width=True)
 
-    # ── 9. EXPORT ─────────────────────────────
-    with tabs[8]:
+    # ── 12. EXPORT ─────────────────────────────
+    with tabs[10]:
         st.markdown(f"<div class='section-header'>Export Data</div>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
