@@ -419,11 +419,6 @@ def base_layout(t, title="", height=420):
         xaxis=dict(gridcolor=chart["gridcolor"], linecolor=chart["border"], showgrid=True),
         yaxis=dict(gridcolor=chart["gridcolor"], linecolor=chart["border"], showgrid=True),
         hoverlabel=dict(bgcolor=chart["surface"], bordercolor=chart["border"], font_size=12),
-        scene=dict(
-            xaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
-            yaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
-            zaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
-        ),
     )
 
 
@@ -447,39 +442,42 @@ def fig_update(fig, t, title="", height=420):
         title_font=dict(color=chart["subtext"]),
         zerolinecolor=chart["border"],
     )
-    if hasattr(fig.layout, 'scene') and fig.layout.scene is not None:
-        fig.update_layout(
-            scene=dict(
-                bgcolor=chart["plot_bg"],
-                xaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    linecolor=chart["border"],
-                    tickfont=dict(color=chart["text"]),
-                    titlefont=dict(color=chart["subtext"]),
-                    zerolinecolor=chart["border"],
-                    showbackground=True,
-                ),
-                yaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    linecolor=chart["border"],
-                    tickfont=dict(color=chart["text"]),
-                    titlefont=dict(color=chart["subtext"]),
-                    zerolinecolor=chart["border"],
-                    showbackground=True,
-                ),
-                zaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    linecolor=chart["border"],
-                    tickfont=dict(color=chart["text"]),
-                    titlefont=dict(color=chart["subtext"]),
-                    zerolinecolor=chart["border"],
-                    showbackground=True,
-                ),
+    try:
+        if fig.layout.scene is not None:
+            fig.update_layout(
+                scene=dict(
+                    bgcolor=chart["plot_bg"],
+                    xaxis=dict(
+                        backgroundcolor=chart["paper_bg"],
+                        gridcolor=chart["gridcolor"],
+                        linecolor=chart["border"],
+                        tickfont=dict(color=chart["text"]),
+                        titlefont=dict(color=chart["subtext"]),
+                        zerolinecolor=chart["border"],
+                        showbackground=True,
+                    ),
+                    yaxis=dict(
+                        backgroundcolor=chart["paper_bg"],
+                        gridcolor=chart["gridcolor"],
+                        linecolor=chart["border"],
+                        tickfont=dict(color=chart["text"]),
+                        titlefont=dict(color=chart["subtext"]),
+                        zerolinecolor=chart["border"],
+                        showbackground=True,
+                    ),
+                    zaxis=dict(
+                        backgroundcolor=chart["paper_bg"],
+                        gridcolor=chart["gridcolor"],
+                        linecolor=chart["border"],
+                        tickfont=dict(color=chart["text"]),
+                        titlefont=dict(color=chart["subtext"]),
+                        zerolinecolor=chart["border"],
+                        showbackground=True,
+                    ),
+                )
             )
-        )
+    except (KeyError, AttributeError):
+        pass
     return fig
 
 
