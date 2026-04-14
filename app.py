@@ -1781,7 +1781,6 @@ def plot_ohlc_wide(df, col_map, t, symbol=None):
         name="Wide OHLC"
     )])
     fig.update_layout(xaxis_rangeslider_visible=False)
-    fig.update_traces(marker_line_width=1.5, marker_line_color=t["border"])
     return fig_update(fig, t, f"Wide OHLC Chart" + (f" — {symbol}" if symbol else ""), 480)
 
 
