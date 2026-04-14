@@ -442,6 +442,31 @@ def fig_update(fig, t, title="", height=420):
         title_font=dict(color=chart["subtext"]),
         zerolinecolor=chart["border"],
     )
+    is_3d = any(
+        isinstance(trace, (go.Surface, go.Scatter3d, go.Mesh3d))
+        for trace in fig.data
+    )
+    if is_3d:
+        fig.update_layout(
+            scene=dict(
+                bgcolor=chart["plot_bg"],
+                xaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    showbackground=True,
+                ),
+                yaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    showbackground=True,
+                ),
+                zaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    showbackground=True,
+                ),
+            )
+        )
     return fig
 
 
