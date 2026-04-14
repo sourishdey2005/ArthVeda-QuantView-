@@ -442,42 +442,6 @@ def fig_update(fig, t, title="", height=420):
         title_font=dict(color=chart["subtext"]),
         zerolinecolor=chart["border"],
     )
-    try:
-        if fig.layout.scene is not None:
-            fig.update_layout(
-                scene=dict(
-                    bgcolor=chart["plot_bg"],
-                    xaxis=dict(
-                        backgroundcolor=chart["paper_bg"],
-                        gridcolor=chart["gridcolor"],
-                        linecolor=chart["border"],
-                        tickfont=dict(color=chart["text"]),
-                        titlefont=dict(color=chart["subtext"]),
-                        zerolinecolor=chart["border"],
-                        showbackground=True,
-                    ),
-                    yaxis=dict(
-                        backgroundcolor=chart["paper_bg"],
-                        gridcolor=chart["gridcolor"],
-                        linecolor=chart["border"],
-                        tickfont=dict(color=chart["text"]),
-                        titlefont=dict(color=chart["subtext"]),
-                        zerolinecolor=chart["border"],
-                        showbackground=True,
-                    ),
-                    zaxis=dict(
-                        backgroundcolor=chart["paper_bg"],
-                        gridcolor=chart["gridcolor"],
-                        linecolor=chart["border"],
-                        tickfont=dict(color=chart["text"]),
-                        titlefont=dict(color=chart["subtext"]),
-                        zerolinecolor=chart["border"],
-                        showbackground=True,
-                    ),
-                )
-            )
-    except (KeyError, AttributeError):
-        pass
     return fig
 
 
