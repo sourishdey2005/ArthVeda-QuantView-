@@ -84,7 +84,7 @@ def get_theme():
 def apply_css(t):
     st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {{
         font-family: 'IBM Plex Sans', sans-serif;
@@ -96,18 +96,40 @@ def apply_css(t):
         background-color: {t['surface']};
         border-right: 1px solid {t['border']};
     }}
+    section[data-testid="stSidebar"]::before {{
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, {t['accent']}, {t['purple']}, {t['cyan']});
+    }}
     .block-container {{ padding: 1.5rem 2rem 2rem 2rem; max-width: 1400px; }}
     h1, h2, h3, h4 {{ font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; color: {t['text']}; }}
+    h1 {{ 
+        font-size: 1.8rem; 
+        background: linear-gradient(135deg, {t['text']} 0%, {t['accent']} 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }}
     .metric-card {{
-        background: {t['surface']};
+        background: linear-gradient(145deg, {t['surface']}, {t['bg']});
         border: 1px solid {t['border']};
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 1rem 1.25rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }}
+    .metric-card:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
     }}
     .metric-value {{
         font-family: 'IBM Plex Mono', monospace;
         font-size: 1.5rem;
-        font-weight: 500;
+        font-weight: 600;
         color: {t['accent']};
     }}
     .metric-label {{
@@ -126,20 +148,85 @@ def apply_css(t):
         border-bottom: 1px solid {t['border']};
         padding-bottom: 0.5rem;
         margin: 1.5rem 0 1rem 0;
+        position: relative;
+    }}
+    .section-header::after {{
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, {t['accent']}, transparent);
     }}
     footer {{ color: {t['subtext']}; font-size: 0.75rem; text-align: center; padding: 1.5rem 0 0.5rem 0; border-top: 1px solid {t['border']}; margin-top: 2rem; }}
-    .stDataFrame {{ border: 1px solid {t['border']}; border-radius: 6px; }}
+    .stDataFrame {{ border: 1px solid {t['border']}; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }}
     div[data-testid="metric-container"] {{
-        background: {t['surface']};
+        background: linear-gradient(145deg, {t['surface']}, {t['bg']});
         border: 1px solid {t['border']};
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 0.75rem 1rem;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.2);
     }}
-    .stTabs [data-baseweb="tab-list"] {{ gap: 0.5rem; background: {t['surface']}; border-radius: 8px; padding: 0.25rem; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 0.5rem; background: {t['surface']}; border-radius: 10px; padding: 0.25rem; }}
     .stTabs [data-baseweb="tab"] {{
         background: transparent;
         color: {t['subtext']};
-        border-radius: 6px;
+        border-radius: 8px;
+        font-weight: 500;
+    }}
+    .stButton > button {{
+        background: linear-gradient(135deg, {t['accent']}, {t['purple']});
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.3s ease;
+    }}
+    .stButton > button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(59,130,246,0.4);
+    }}
+    .stFileUploader {{
+        background: {t['surface']};
+        border-radius: 12px;
+        padding: 1rem;
+        border: 2px dashed {t['border']};
+    }}
+    .stFileUploader:hover {{
+        border-color: {t['accent']};
+    }}
+    div[data-testid="stExpander"] {{
+        background: {t['surface']};
+        border-radius: 10px;
+        border: 1px solid {t['border']};
+    }}
+    .upload-zone {{
+        border: 2px dashed {t['border']};
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: linear-gradient(145deg, {t['surface']}, {t['bg']});
+        transition: all 0.3s ease;
+    }}
+    .upload-zone:hover {{
+        border-color: {t['accent']};
+        box-shadow: 0 0 20px rgba(59,130,246,0.2);
+    }}
+    .logo-text {{
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, {t['accent']}, {t['purple']}, {t['cyan']});
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
         font-size: 0.82rem;
         font-weight: 500;
         padding: 0.4rem 0.9rem;
@@ -1820,13 +1907,10 @@ def main():
     with col_title:
         st.markdown(f"""
         <div style="margin-bottom:0.25rem">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;
-                         color:{t['subtext']};letter-spacing:0.12em;text-transform:uppercase;">
-                QUANTITATIVE ANALYTICS PLATFORM
-            </span>
+            <span class="logo-text">Quantitative Analytics Platform</span>
         </div>
-        <h1 style="margin:0;font-size:1.7rem;font-weight:600;color:{t['text']}">
-            ArthVeda QuantView
+        <h1 style="margin:0;font-size:1.7rem;font-weight:700;">
+            <span style="color:{t['text']}">Arth</span><span style="color:{t['accent']}">Veda</span> <span style="color:{t['subtext']}">Quant</span><span style="color:{t['purple']}">View</span>
         </h1>
         """, unsafe_allow_html=True)
 

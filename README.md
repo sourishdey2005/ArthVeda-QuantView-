@@ -10,7 +10,7 @@ A professional-grade quantitative analytics platform for financial market data a
 
 - **50+ Advanced Visualizations** - Comprehensive charts including Heikin-Ashi, Keltner Channels, Ichimoku Cloud, Stochastic Oscillator, MACD, RSI, Bollinger Bands, and many more
 - **Multi-File Upload** - Upload multiple CSV/Excel files to compare and analyze
-- **Deep Dark Theme** - Professional dark color palette optimized for financial data visualization
+- **Professional Dark Theme** - Sleek dark color palette optimized for financial data visualization
 - **Technical Indicators** - 20+ technical indicators including ATR, CCI, Williams %R, OBV, MFI, VWAP, Parabolic SAR, TRIX, KAMA, Aroon, KST, PPO
 - **Pattern Recognition** - ZigZag, Line Break, Renko charts, support/resistance detection, breakout analysis
 - **Risk Analysis** - Drawdown analysis, anomaly detection with Z-score, volatility heatmaps
@@ -82,10 +82,6 @@ Download the built-in Excel template from the sidebar when no file is uploaded. 
 - **Data Processing**: Pandas, NumPy
 - **Statistics**: SciPy, Scikit-learn, Statsmodels
 - **Excel Handling**: Openpyxl, XlsxWriter
-
-## Screenshot
-
-![ArthVeda QuantView Screenshot](https://via.placeholder.com/800x400?text=ArthVeda+QuantView+Dashboard)
 
 ## Contributing
 
