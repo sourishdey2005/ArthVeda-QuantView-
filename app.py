@@ -227,42 +227,6 @@ def apply_css(t):
     }}
     </style>
     """, unsafe_allow_html=True)
-        font-size: 0.82rem;
-        font-weight: 500;
-        padding: 0.4rem 0.9rem;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background: {t['accent']};
-        color: white !important;
-    }}
-
-    /* Inputs & buttons */
-    .stButton > button {{
-        background: {t['accent']};
-        color: white;
-        border: 1px solid {t['accent']};
-        border-radius: 10px;
-        padding: 0.45rem 0.95rem;
-        font-weight: 600;
-    }}
-    .stButton > button:hover {{ filter: brightness(0.96); }}
-    div[data-baseweb="input"] input {{
-        background: {t['surface']};
-        color: {t['text']};
-        border-radius: 10px;
-    }}
-    div[data-baseweb="select"] > div {{
-        background: {t['surface']};
-        border-radius: 10px;
-    }}
-    div[data-baseweb="select"] span {{
-        color: {t['text']};
-    }}
-    div[data-testid="stSidebar"] hr {{
-        border-color: {t['border']};
-    }}
-    </style>
-    """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────
