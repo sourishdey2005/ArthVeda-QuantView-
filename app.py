@@ -1807,8 +1807,9 @@ def apply_sidebar_filters(df, col_map):
         # Date range
         if "date" in col_map:
             d = col_map["date"]
-            min_d = pd.to_datetime(df[d].min()).date()
-            max_d = pd.to_datetime(df[d].max()).date()
+            df[d] = pd.to_datetime(df[d], errors="coerce")
+            min_d = df[d].min().date()
+            max_d = df[d].max().date()
             if min_d < max_d:
                 date_range = st.date_input(
                     "Date Range",
