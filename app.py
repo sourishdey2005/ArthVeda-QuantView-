@@ -423,9 +423,17 @@ def base_layout(t, title="", height=420):
 
 
 def fig_update(fig, t, title="", height=420):
-    layout = base_layout(t, title, height)
-    fig.update_layout(**layout)
     chart = get_chart_style()
+    fig.update_layout(
+        template=chart["plotly_template"],
+        paper_bgcolor=chart["paper_bg"],
+        plot_bgcolor=chart["plot_bg"],
+        font=dict(family="IBM Plex Sans, sans-serif", color=chart["text"], size=12),
+        title=dict(text=title, font=dict(size=13, color=chart["subtext"]), x=0),
+        height=height,
+        margin=dict(l=48, r=20, t=42, b=40),
+        legend=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0, font=dict(size=11, color=chart["text"])),
+    )
     fig.update_xaxes(
         showgrid=True,
         gridcolor=chart["gridcolor"],
@@ -442,31 +450,6 @@ def fig_update(fig, t, title="", height=420):
         title_font=dict(color=chart["subtext"]),
         zerolinecolor=chart["border"],
     )
-    is_3d = any(
-        isinstance(trace, (go.Surface, go.Scatter3d, go.Mesh3d))
-        for trace in fig.data
-    )
-    if is_3d:
-        fig.update_layout(
-            scene=dict(
-                bgcolor=chart["plot_bg"],
-                xaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    showbackground=True,
-                ),
-                yaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    showbackground=True,
-                ),
-                zaxis=dict(
-                    backgroundcolor=chart["paper_bg"],
-                    gridcolor=chart["gridcolor"],
-                    showbackground=True,
-                ),
-            )
-        )
     return fig
 
 
@@ -2019,17 +2002,20 @@ def plot_3d_price_surface(df, col_map, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Price Surface", 520)
+    chart = get_chart_style()
     fig.update_layout(
+        title=dict(text="3D Price Surface", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
         scene=dict(
-            xaxis=dict(title="Hour"),
+            xaxis=dict(title="Hour", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
             yaxis=dict(
-                title="Day",
+                title="Day", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True,
                 tickmode="array",
                 tickvals=list(range(len(surf.index))),
                 ticktext=surf.index.tolist(),
             ),
-            zaxis=dict(title="Price"),
+            zaxis=dict(title="Price", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
         )
     )
     return fig
@@ -2063,12 +2049,15 @@ def plot_3d_volume_price(df, col_map, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Volume-Price", 520)
+    chart = get_chart_style()
     fig.update_layout(
+        title=dict(text="3D Volume-Price", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
         scene=dict(
-            xaxis=dict(title="Time Index"),
-            yaxis=dict(title="Close"),
-            zaxis=dict(title="Volume"),
+            xaxis=dict(title="Time Index", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Close", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Volume", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
         )
     )
     return fig
@@ -2103,8 +2092,17 @@ def plot_3d_returns_evolution(df, close_col, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Returns Evolution", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Horizon (bars)"), zaxis=dict(title="Return %")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text="3D Returns Evolution", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Time Index", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Horizon (bars)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Return %", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2128,8 +2126,17 @@ def plot_3d_rolling_std(df, close_col, t, window=20):
     y = windows
 
     fig = go.Figure(data=[go.Surface(x=x, y=y, z=z, colorscale="Blues", showscale=True, colorbar=dict(title="Std %"))])
-    fig = fig_update(fig, t, f"3D Rolling Std Dev", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="Std Dev (%)")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text=f"3D Rolling Std Dev", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Time Index", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Window (bars)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Std Dev (%)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2154,8 +2161,17 @@ def plot_3d_correlation_surface(df, close_col, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Autocorrelation", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Lag"), yaxis=dict(title=""), zaxis=dict(title="Autocorr")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text="3D Autocorrelation", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Lag", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Autocorr", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2177,8 +2193,17 @@ def plot_3d_price_distribution(df, close_col, t, bins=30):
             )
         ]
     )
-    fig = fig_update(fig, t, f"3D Price Distribution ({bins} bins)", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Price"), yaxis=dict(title=""), zaxis=dict(title="Count")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text=f"3D Price Distribution ({bins} bins)", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Price", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Count", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2218,8 +2243,17 @@ def plot_3d_volatility_cone(df, close_col, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Volatility Cone", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Observation"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="Volatility (%)")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text="3D Volatility Cone", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Observation", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Window (bars)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Volatility (%)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2238,8 +2272,17 @@ def plot_3d_multi_timeframe(df, col_map, t):
     z = np.vstack([sma_5, sma_20, sma_50])
     y = [5, 20, 50]
     fig = go.Figure(data=[go.Surface(x=time_idx, y=y, z=z, colorscale="Twilight", showscale=True, colorbar=dict(title="MA"))])
-    fig = fig_update(fig, t, "3D Multi-Timeframe MA", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="MA Value")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text="3D Multi-Timeframe MA", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Time Index", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Window (bars)", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="MA Value", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
@@ -2272,8 +2315,17 @@ def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
                 )
             ]
         )
-        fig = fig_update(fig, t, "3D Volume Profile", 520)
-        fig.update_layout(scene=dict(xaxis=dict(title="Price Bin"), yaxis=dict(title=""), zaxis=dict(title="Volume")))
+        chart = get_chart_style()
+        fig.update_layout(
+            title=dict(text="3D Volume Profile", font=dict(size=13, color=chart["subtext"]), x=0),
+            height=520,
+            margin=dict(l=48, r=20, t=42, b=40),
+            scene=dict(
+                xaxis=dict(title="Price Bin", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+                yaxis=dict(title="", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+                zaxis=dict(title="Volume", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            )
+        )
         return fig
     except Exception:
         return None
@@ -2327,8 +2379,17 @@ def plot_3d_heatmap_3d(df, close_col, t):
             )
         ]
     )
-    fig = fig_update(fig, t, "3D Monthly Returns", 520)
-    fig.update_layout(scene=dict(xaxis=dict(title="Month"), yaxis=dict(title="Year"), zaxis=dict(title="Return %")))
+    chart = get_chart_style()
+    fig.update_layout(
+        title=dict(text="3D Monthly Returns", font=dict(size=13, color=chart["subtext"]), x=0),
+        height=520,
+        margin=dict(l=48, r=20, t=42, b=40),
+        scene=dict(
+            xaxis=dict(title="Month", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            yaxis=dict(title="Year", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+            zaxis=dict(title="Return %", backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+        )
+    )
     return fig
 
 
