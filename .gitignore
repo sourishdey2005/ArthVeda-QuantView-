@@ -46,3 +46,9 @@ Thumbs.db
 # stocks/
 # *.zip
 # *.csv
+
+# Local data artifacts (avoid committing large datasets)
+etfs/
+stocks/
+date.zip
+symbols_valid_meta.csv

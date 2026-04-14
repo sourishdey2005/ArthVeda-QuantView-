@@ -450,9 +450,34 @@ def fig_update(fig, t, title="", height=420):
     if hasattr(fig.layout, 'scene') and fig.layout.scene is not None:
         fig.update_layout(
             scene=dict(
-                xaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
-                yaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
-                zaxis=dict(backgroundcolor=chart["paper_bg"], gridcolor=chart["gridcolor"], showbackground=True),
+                bgcolor=chart["plot_bg"],
+                xaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    linecolor=chart["border"],
+                    tickfont=dict(color=chart["text"]),
+                    titlefont=dict(color=chart["subtext"]),
+                    zerolinecolor=chart["border"],
+                    showbackground=True,
+                ),
+                yaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    linecolor=chart["border"],
+                    tickfont=dict(color=chart["text"]),
+                    titlefont=dict(color=chart["subtext"]),
+                    zerolinecolor=chart["border"],
+                    showbackground=True,
+                ),
+                zaxis=dict(
+                    backgroundcolor=chart["paper_bg"],
+                    gridcolor=chart["gridcolor"],
+                    linecolor=chart["border"],
+                    tickfont=dict(color=chart["text"]),
+                    titlefont=dict(color=chart["subtext"]),
+                    zerolinecolor=chart["border"],
+                    showbackground=True,
+                ),
             )
         )
     return fig
@@ -1965,106 +1990,270 @@ def plot_ticks(df, close_col, t, symbol=None, n_ticks=50):
 # ─────────────────────────────────────────────
 
 def plot_3d_price_surface(df, col_map, t):
-    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+    if not all(k in col_map for k in ["date", "high", "low", "close"]):
         return None
+
     df2 = df.copy()
+    dt = pd.to_datetime(df2[col_map["date"]], errors="coerce")
+    df2 = df2.loc[dt.notna()].copy()
+    if df2.empty:
+        return None
+
+    df2["_dt"] = pd.to_datetime(df2[col_map["date"]], errors="coerce")
     df2["Price"] = (df2[col_map["high"]] + df2[col_map["low"]] + df2[col_map["close"]]) / 3
-    df2["Time"] = range(len(df2))
-    df2["Hour"] = df2[col_map["date"]].dt.hour if hasattr(df2[col_map["date"]], 'dt') else df2["Time"] % 24
-    fig = go.Figure(data=[go.Surface(
-        x=df2["Hour"], y=df2["Time"], z=df2["Price"].values.reshape(-1, 1),
-        colorscale="Viridis", showscale=False
-    )])
-    return fig_update(fig, t, "3D Price Surface", 500)
+    df2["Day"] = df2["_dt"].dt.date.astype(str)
+    df2["Hour"] = df2["_dt"].dt.hour.astype(int)
+
+    surf = (
+        df2.pivot_table(index="Day", columns="Hour", values="Price", aggfunc="mean")
+        .sort_index(axis=0)
+        .sort_index(axis=1)
+    )
+    if surf.empty:
+        return None
+    surf = surf.ffill(axis=1).bfill(axis=1).ffill(axis=0).bfill(axis=0)
+    surf = surf.fillna(surf.stack().median() if not surf.stack().empty else 0.0)
+
+    if surf.shape[0] == 1:
+        surf = pd.concat([surf, surf], axis=0)
+    if surf.shape[1] == 1:
+        surf[surf.columns[0] + 1] = surf.iloc[:, 0]
+        surf = surf.sort_index(axis=1)
+
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=surf.columns.astype(int).tolist(),
+                y=list(range(len(surf.index))),
+                z=surf.values,
+                colorscale="Viridis",
+                showscale=True,
+                colorbar=dict(title="Price"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Price Surface", 520)
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title="Hour"),
+            yaxis=dict(
+                title="Day",
+                tickmode="array",
+                tickvals=list(range(len(surf.index))),
+                ticktext=surf.index.tolist(),
+            ),
+            zaxis=dict(title="Price"),
+        )
+    )
+    return fig
 
 
 def plot_3d_volume_price(df, col_map, t):
     if not all(k in col_map for k in ["close", "volume"]):
         return None
     df2 = df.copy()
-    df2["Time"] = range(len(df2))
-    fig = go.Figure(data=[go.Surface(
-        x=df2["Time"], y=df2[col_map["close"]], z=df2[col_map["volume"]].values.reshape(-1, 1),
-        colorscale="Plasma", showscale=False
-    )])
-    return fig_update(fig, t, "3D Volume-Price Surface", 500)
+    df2 = df2[[col_map["close"], col_map["volume"]]].dropna()
+    if df2.empty:
+        return None
+
+    time_idx = np.arange(len(df2))
+    fig = go.Figure(
+        data=[
+            go.Scatter3d(
+                x=time_idx,
+                y=df2[col_map["close"]],
+                z=df2[col_map["volume"]],
+                mode="markers",
+                marker=dict(
+                    size=3,
+                    opacity=0.75,
+                    color=df2[col_map["close"]],
+                    colorscale="Plasma",
+                    showscale=True,
+                    colorbar=dict(title="Close"),
+                ),
+                name="Volume-Price",
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Volume-Price", 520)
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title="Time Index"),
+            yaxis=dict(title="Close"),
+            zaxis=dict(title="Volume"),
+        )
+    )
+    return fig
 
 
 def plot_3d_returns_evolution(df, close_col, t):
-    returns = df[close_col].pct_change().fillna(0) * 100
-    time_idx = list(range(len(returns)))
-    fig = go.Figure(data=[go.Surface(
-        x=time_idx, y=[0, 0], z=returns.values.reshape(1, -1),
-        colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
-    )])
-    return fig_update(fig, t, "3D Returns Evolution", 450)
+    close = df[close_col].dropna()
+    if len(close) < 3:
+        return None
+
+    horizons = [h for h in [1, 5, 10, 20, 60] if h < len(close)]
+    if not horizons:
+        return None
+
+    z_rows = []
+    for h in horizons:
+        z_rows.append(close.pct_change(periods=h).fillna(0).values * 100)
+
+    z = np.vstack(z_rows)
+    x = np.arange(z.shape[1]).tolist()
+    y = horizons
+
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=x,
+                y=y,
+                z=z,
+                colorscale="RdYlGn",
+                showscale=True,
+                colorbar=dict(title="Return %"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Returns Evolution", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Horizon (bars)"), zaxis=dict(title="Return %")))
+    return fig
 
 
 def plot_3d_rolling_std(df, close_col, t, window=20):
-    rolling_std = df[close_col].rolling(window).std()
-    rolling_mean = df[close_col].rolling(window).mean()
-    time_idx = list(range(len(rolling_std)))
-    fig = go.Figure(data=[go.Surface(
-        x=time_idx, y=rolling_mean.values.tolist(), z=rolling_std.values.reshape(1, -1),
-        colorscale="Blues", showscale=False
-    )])
-    return fig_update(fig, t, f"3D Rolling Std Dev ({window}d)", 450)
+    close = df[close_col].dropna()
+    if len(close) < 5:
+        return None
+
+    returns = close.pct_change().fillna(0) * 100
+    windows = [w for w in [5, 10, window, 50] if w < len(returns)]
+    windows = sorted(set(windows))
+    if not windows:
+        return None
+
+    z_rows = []
+    for w in windows:
+        z_rows.append(returns.rolling(w, min_periods=max(2, w // 2)).std().fillna(0).values)
+
+    z = np.vstack(z_rows)
+    x = np.arange(z.shape[1]).tolist()
+    y = windows
+
+    fig = go.Figure(data=[go.Surface(x=x, y=y, z=z, colorscale="Blues", showscale=True, colorbar=dict(title="Std %"))])
+    fig = fig_update(fig, t, f"3D Rolling Std Dev", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="Std Dev (%)")))
+    return fig
 
 
 def plot_3d_correlation_surface(df, close_col, t):
     returns = df[close_col].pct_change().dropna()
+    if len(returns) < 35:
+        return None
     lags = list(range(1, 31))
-    corr_surface = np.zeros((1, len(lags)))
+    corr_surface = np.zeros((len(lags),), dtype=float)
     for i, lag in enumerate(lags):
-        corr_surface[0, i] = returns.autocorr(lag=lag)
-    fig = go.Figure(data=[go.Surface(
-        x=lags, y=[0, 0], z=corr_surface,
-        colorscale="IceFire", showscale=True, colorbar=dict(title="Corr")
-    )])
-    return fig_update(fig, t, "3D Autocorrelation Surface", 450)
+        corr_surface[i] = returns.autocorr(lag=lag)
+    z = np.vstack([corr_surface, corr_surface])
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=lags,
+                y=[0, 1],
+                z=z,
+                colorscale="IceFire",
+                showscale=True,
+                colorbar=dict(title="Corr"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Autocorrelation", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Lag"), yaxis=dict(title=""), zaxis=dict(title="Autocorr")))
+    return fig
 
 
 def plot_3d_price_distribution(df, close_col, t, bins=30):
     hist, bin_edges = np.histogram(df[close_col].dropna(), bins=bins)
-    x = bin_edges[:-1].tolist()
-    y = [0, 0]
-    fig = go.Figure(data=[go.Surface(
-        x=x, y=y, z=hist.reshape(1, -1),
-        colorscale="Magma", showscale=False
-    )])
-    return fig_update(fig, t, f"3D Price Distribution ({bins} bins)", 450)
+    if hist.size < 2:
+        return None
+    centers = ((bin_edges[:-1] + bin_edges[1:]) / 2.0).tolist()
+    z = np.vstack([hist, hist])
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=centers,
+                y=[0, 1],
+                z=z,
+                colorscale="Magma",
+                showscale=True,
+                colorbar=dict(title="Count"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, f"3D Price Distribution ({bins} bins)", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Price"), yaxis=dict(title=""), zaxis=dict(title="Count")))
+    return fig
 
 
 def plot_3d_volatility_cone(df, close_col, t):
     returns = df[close_col].pct_change().dropna()
-    time_horizons = [1, 5, 10, 20, 30, 60]
-    volatilities = []
+    if len(returns) < 30:
+        return None
+
+    time_horizons = [h for h in [5, 10, 20, 30, 60] if h < len(returns)]
+    if not time_horizons:
+        return None
+
+    vols = []
     for h in time_horizons:
-        vol = returns.rolling(h).std() * np.sqrt(252) * 100
-        volatilities.append(vol.dropna().values[:min(100, len(vol.dropna()))])
-    max_len = max(len(v) for v in volatilities)
-    padded = np.array([np.pad(v, (0, max_len - len(v)), constant_values=np.nan) for v in volatilities])
-    fig = go.Figure(data=[go.Surface(
-        x=list(range(max_len)), y=time_horizons, z=padded,
-        colorscale="Viridis", showscale=True, colorbar=dict(title="Vol %")
-    )])
-    return fig_update(fig, t, "3D Volatility Cone", 500)
+        vol = returns.rolling(h, min_periods=h).std() * np.sqrt(252) * 100
+        series = vol.dropna().values
+        vols.append(series[-200:] if len(series) > 200 else series)
+
+    if not vols or max(len(v) for v in vols) < 2:
+        return None
+
+    max_len = max(len(v) for v in vols)
+    z = np.full((len(time_horizons), max_len), np.nan, dtype=float)
+    for i, arr in enumerate(vols):
+        if len(arr) > 0:
+            z[i, -len(arr):] = arr
+
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=list(range(max_len)),
+                y=time_horizons,
+                z=z,
+                colorscale="Viridis",
+                showscale=True,
+                colorbar=dict(title="Vol %"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Volatility Cone", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Observation"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="Volatility (%)")))
+    return fig
 
 
 def plot_3d_multi_timeframe(df, col_map, t):
     if "close" not in col_map:
         return None
     close = df[col_map["close"]]
-    sma_5 = close.rolling(5).mean().values.tolist()
-    sma_20 = close.rolling(20).mean().values[:len(sma_5)].tolist()
-    sma_50 = close.rolling(50).mean().values[:len(sma_5)].tolist()
-    time_idx = list(range(len(sma_5)))
-    fig = go.Figure(data=[go.Surface(
-        x=time_idx, y=[0, 1, 2], 
-        z=np.array([sma_5, sma_20, sma_50]),
-        colorscale="Twilight", showscale=False
-    )])
-    return fig_update(fig, t, "3D Multi-Timeframe MA", 500)
+    if close.dropna().empty or len(close) < 5:
+        return None
+
+    sma_5 = close.rolling(5, min_periods=1).mean().values
+    sma_20 = close.rolling(20, min_periods=1).mean().values
+    sma_50 = close.rolling(50, min_periods=1).mean().values
+    time_idx = list(range(len(close)))
+
+    z = np.vstack([sma_5, sma_20, sma_50])
+    y = [5, 20, 50]
+    fig = go.Figure(data=[go.Surface(x=time_idx, y=y, z=z, colorscale="Twilight", showscale=True, colorbar=dict(title="MA"))])
+    fig = fig_update(fig, t, "3D Multi-Timeframe MA", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Time Index"), yaxis=dict(title="Window (bars)"), zaxis=dict(title="MA Value")))
+    return fig
 
 
 def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
@@ -2075,33 +2264,85 @@ def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
         vol = df[col_map["volume"]]
         price_bins = pd.cut(close, bins=bins, duplicates="drop")
         profile = vol.groupby(price_bins, observed=True).sum()
-        if hasattr(profile.index, 'mid'):
-            x_vals = [str(i.mid) for i in profile.index]
+        if profile.empty or len(profile) < 2:
+            return None
+
+        if hasattr(profile.index, "mid"):
+            x_vals = [float(i.mid) for i in profile.index]
         else:
             x_vals = list(range(len(profile)))
-        fig = go.Figure(data=[go.Surface(
-            x=x_vals, y=[0, 0], z=profile.values.reshape(1, -1),
-            colorscale="Turbo", showscale=True, colorbar=dict(title="Volume")
-        )])
-        return fig_update(fig, t, "3D Volume Profile", 450)
+
+        z = np.vstack([profile.values, profile.values])
+        fig = go.Figure(
+            data=[
+                go.Surface(
+                    x=x_vals,
+                    y=[0, 1],
+                    z=z,
+                    colorscale="Turbo",
+                    showscale=True,
+                    colorbar=dict(title="Volume"),
+                )
+            ]
+        )
+        fig = fig_update(fig, t, "3D Volume Profile", 520)
+        fig.update_layout(scene=dict(xaxis=dict(title="Price Bin"), yaxis=dict(title=""), zaxis=dict(title="Volume")))
+        return fig
     except Exception:
         return None
 
 
 def plot_3d_heatmap_3d(df, close_col, t):
     df2 = df.copy()
-    date_col = df2.columns[0]
-    df2["Year"] = df2[date_col].dt.year if hasattr(df2[date_col], 'dt') else 0
-    df2["Month"] = df2[date_col].dt.month if hasattr(df2[date_col], 'dt') else 0
-    df2["Return"] = df2[close_col].pct_change()
-    monthly_ret = df2.groupby(["Year", "Month"])["Return"].sum().unstack() * 100
+    dt_col = None
+    for c in df2.columns:
+        if np.issubdtype(df2[c].dtype, np.datetime64):
+            dt_col = c
+            break
+    if dt_col is None:
+        for c in df2.columns:
+            if str(c).strip().lower() in {"date", "datetime", "time", "timestamp"}:
+                dt_col = c
+                break
+
+    if dt_col is None:
+        return None
+
+    df2["_dt"] = pd.to_datetime(df2[dt_col], errors="coerce")
+    df2 = df2.loc[df2["_dt"].notna()].sort_values("_dt")
+    if df2.empty:
+        return None
+
+    s = df2.set_index("_dt")[close_col].dropna()
+    if len(s) < 35:
+        return None
+
+    monthly_close = s.resample("ME").last()
+    monthly_ret = monthly_close.pct_change() * 100
+    monthly_ret = monthly_ret.dropna()
     if monthly_ret.empty:
         return None
-    fig = go.Figure(data=[go.Surface(
-        x=monthly_ret.columns.tolist(), y=monthly_ret.index.tolist(), z=monthly_ret.values.tolist(),
-        colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
-    )])
-    return fig_update(fig, t, "3D Monthly Returns Heatmap", 500)
+
+    mr = pd.DataFrame({"Year": monthly_ret.index.year, "Month": monthly_ret.index.month, "Return": monthly_ret.values})
+    pivot = mr.pivot_table(index="Year", columns="Month", values="Return", aggfunc="mean").sort_index()
+    if pivot.empty or pivot.shape[0] < 1 or pivot.shape[1] < 2:
+        return None
+
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                x=pivot.columns.tolist(),
+                y=pivot.index.tolist(),
+                z=pivot.values,
+                colorscale="RdYlGn",
+                showscale=True,
+                colorbar=dict(title="Return %"),
+            )
+        ]
+    )
+    fig = fig_update(fig, t, "3D Monthly Returns", 520)
+    fig.update_layout(scene=dict(xaxis=dict(title="Month"), yaxis=dict(title="Year"), zaxis=dict(title="Return %")))
+    return fig
 
 
 # ─────────────────────────────────────────────
@@ -2842,21 +3083,41 @@ def main():
             c3, c4 = st.columns(2)
             with c3:
                 st.markdown(f"<div class='section-header'>3D Returns Evolution</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_3d_returns_evolution(df_primary, close_col, t), use_container_width=True)
+                re_fig = plot_3d_returns_evolution(df_primary, close_col, t)
+                if re_fig:
+                    st.plotly_chart(re_fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to render 3D returns evolution.")
             with c4:
                 st.markdown(f"<div class='section-header'>3D Rolling Std Dev</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_3d_rolling_std(df_primary, close_col, t), use_container_width=True)
+                rs_fig = plot_3d_rolling_std(df_primary, close_col, t)
+                if rs_fig:
+                    st.plotly_chart(rs_fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to render 3D rolling std dev.")
             
             c5, c6 = st.columns(2)
             with c5:
                 st.markdown(f"<div class='section-header'>3D Autocorrelation</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_3d_correlation_surface(df_primary, close_col, t), use_container_width=True)
+                ac_fig = plot_3d_correlation_surface(df_primary, close_col, t)
+                if ac_fig:
+                    st.plotly_chart(ac_fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to render 3D autocorrelation.")
             with c6:
                 st.markdown(f"<div class='section-header'>3D Price Distribution</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_3d_price_distribution(df_primary, close_col, t), use_container_width=True)
+                pd_fig = plot_3d_price_distribution(df_primary, close_col, t)
+                if pd_fig:
+                    st.plotly_chart(pd_fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to render 3D price distribution.")
             
             st.markdown(f"<div class='section-header'>3D Volatility Cone</div>", unsafe_allow_html=True)
-            st.plotly_chart(plot_3d_volatility_cone(df_primary, close_col, t), use_container_width=True)
+            vc_fig = plot_3d_volatility_cone(df_primary, close_col, t)
+            if vc_fig:
+                st.plotly_chart(vc_fig, use_container_width=True)
+            else:
+                st.info("Not enough data to render 3D volatility cone.")
             
             st.markdown(f"<div class='section-header'>3D Multi-Timeframe MA</div>", unsafe_allow_html=True)
             mt_fig = plot_3d_multi_timeframe(df_primary, col_map, t)
@@ -2867,12 +3128,18 @@ def main():
             with c7:
                 st.markdown(f"<div class='section-header'>3D Volume Profile</div>", unsafe_allow_html=True)
                 if vol_col:
-                    st.plotly_chart(plot_3d_volume_profile_3d(df_primary, col_map, t), use_container_width=True)
+                    vp3d_fig = plot_3d_volume_profile_3d(df_primary, col_map, t)
+                    if vp3d_fig:
+                        st.plotly_chart(vp3d_fig, use_container_width=True)
+                    else:
+                        st.info("Not enough data to render 3D volume profile.")
             with c8:
                 st.markdown(f"<div class='section-header'>3D Monthly Returns</div>", unsafe_allow_html=True)
                 mr_fig = plot_3d_heatmap_3d(df_primary, close_col, t)
                 if mr_fig:
                     st.plotly_chart(mr_fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to render 3D monthly returns.")
 
     # ── 11. MULTI-SYMBOL ───────────────────────
     with tabs[9]:
