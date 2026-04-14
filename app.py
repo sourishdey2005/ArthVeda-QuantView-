@@ -1981,9 +1981,9 @@ def plot_3d_volume_price(df, col_map, t):
 
 def plot_3d_returns_evolution(df, close_col, t):
     returns = df[close_col].pct_change().fillna(0) * 100
-    time_idx = range(len(returns))
+    time_idx = list(range(len(returns)))
     fig = go.Figure(data=[go.Surface(
-        x=list(time_idx), y=[0], z=returns.values.reshape(1, -1),
+        x=time_idx, y=[0, 0], z=returns.values.reshape(1, -1),
         colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
     )])
     return fig_update(fig, t, "3D Returns Evolution", 450)
@@ -1992,9 +1992,9 @@ def plot_3d_returns_evolution(df, close_col, t):
 def plot_3d_rolling_std(df, close_col, t, window=20):
     rolling_std = df[close_col].rolling(window).std()
     rolling_mean = df[close_col].rolling(window).mean()
-    time_idx = range(len(rolling_std))
+    time_idx = list(range(len(rolling_std)))
     fig = go.Figure(data=[go.Surface(
-        x=list(time_idx), y=rolling_mean, z=rolling_std.values.reshape(1, -1),
+        x=time_idx, y=rolling_mean.values.tolist(), z=rolling_std.values.reshape(1, -1),
         colorscale="Blues", showscale=False
     )])
     return fig_update(fig, t, f"3D Rolling Std Dev ({window}d)", 450)
@@ -2002,12 +2002,12 @@ def plot_3d_rolling_std(df, close_col, t, window=20):
 
 def plot_3d_correlation_surface(df, close_col, t):
     returns = df[close_col].pct_change().dropna()
-    lags = range(1, 31)
+    lags = list(range(1, 31))
     corr_surface = np.zeros((1, len(lags)))
-    for lag in lags:
-        corr_surface[0, lag-1] = returns.autocorr(lag=lag)
+    for i, lag in enumerate(lags):
+        corr_surface[0, i] = returns.autocorr(lag=lag)
     fig = go.Figure(data=[go.Surface(
-        x=lags, y=[0], z=corr_surface,
+        x=lags, y=[0, 0], z=corr_surface,
         colorscale="IceFire", showscale=True, colorbar=dict(title="Corr")
     )])
     return fig_update(fig, t, "3D Autocorrelation Surface", 450)
@@ -2015,8 +2015,8 @@ def plot_3d_correlation_surface(df, close_col, t):
 
 def plot_3d_price_distribution(df, close_col, t, bins=30):
     hist, bin_edges = np.histogram(df[close_col].dropna(), bins=bins)
-    x = bin_edges[:-1]
-    y = [0] * len(x)
+    x = bin_edges[:-1].tolist()
+    y = [0, 0]
     fig = go.Figure(data=[go.Surface(
         x=x, y=y, z=hist.reshape(1, -1),
         colorscale="Magma", showscale=False
@@ -2044,13 +2044,13 @@ def plot_3d_multi_timeframe(df, col_map, t):
     if "close" not in col_map:
         return None
     close = df[col_map["close"]]
-    sma_5 = close.rolling(5).mean()
-    sma_20 = close.rolling(20).mean()
-    sma_50 = close.rolling(50).mean()
-    time_idx = range(len(close))
+    sma_5 = close.rolling(5).mean().values.tolist()
+    sma_20 = close.rolling(20).mean().values[:len(sma_5)].tolist()
+    sma_50 = close.rolling(50).mean().values[:len(sma_5)].tolist()
+    time_idx = list(range(len(sma_5)))
     fig = go.Figure(data=[go.Surface(
-        x=list(time_idx), y=[0, 1, 2], 
-        z=np.array([sma_5.values, sma_20.values[:len(sma_5)], sma_50.values[:len(sma_5)]]),
+        x=time_idx, y=[0, 1, 2], 
+        z=np.array([sma_5, sma_20, sma_50]),
         colorscale="Twilight", showscale=False
     )])
     return fig_update(fig, t, "3D Multi-Timeframe MA", 500)
@@ -2063,8 +2063,9 @@ def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
     vol = df[col_map["volume"]]
     price_bins = pd.cut(close, bins=bins)
     profile = vol.groupby(price_bins, observed=True).sum()
+    x_vals = profile.index.mid.astype(str).tolist()
     fig = go.Figure(data=[go.Surface(
-        x=profile.index.mid.astype(str), y=[0], z=profile.values.reshape(1, -1),
+        x=x_vals, y=[0, 0], z=profile.values.reshape(1, -1),
         colorscale="Turbo", showscale=True, colorbar=dict(title="Volume")
     )])
     return fig_update(fig, t, "3D Volume Profile", 450)
@@ -2072,14 +2073,15 @@ def plot_3d_volume_profile_3d(df, col_map, t, bins=20):
 
 def plot_3d_heatmap_3d(df, close_col, t):
     df2 = df.copy()
-    df2["Year"] = df2[df2.columns[0]].dt.year if hasattr(df2[df2.columns[0]], 'dt') else 0
-    df2["Month"] = df2[df2.columns[0]].dt.month if hasattr(df2[df2.columns[0]], 'dt') else 0
+    date_col = df2.columns[0]
+    df2["Year"] = df2[date_col].dt.year if hasattr(df2[date_col], 'dt') else 0
+    df2["Month"] = df2[date_col].dt.month if hasattr(df2[date_col], 'dt') else 0
     df2["Return"] = df2[close_col].pct_change()
     monthly_ret = df2.groupby(["Year", "Month"])["Return"].sum().unstack() * 100
     if monthly_ret.empty:
         return None
     fig = go.Figure(data=[go.Surface(
-        x=monthly_ret.columns, y=monthly_ret.index, z=monthly_ret.values,
+        x=monthly_ret.columns.tolist(), y=monthly_ret.index.tolist(), z=monthly_ret.values.tolist(),
         colorscale="RdYlGn", showscale=True, colorbar=dict(title="Return %")
     )])
     return fig_update(fig, t, "3D Monthly Returns Heatmap", 500)
