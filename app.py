@@ -2263,8 +2263,11 @@ def plot_trend_intensity(df, close_col, t, window=30):
     if len(close) < window:
         return None
     sma = close.rolling(window).mean()
-    above = (close > sma).sum()
-    intensity = above / window * 100
+    above = (close > sma).astype(int)
+    intensity = above.rolling(window).sum() / window * 100
+    intensity = intensity.dropna()
+    if len(intensity) == 0:
+        return None
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=intensity, mode="lines", name="Trend Intensity",
                             line=dict(color=t["cyan"], width=2),
