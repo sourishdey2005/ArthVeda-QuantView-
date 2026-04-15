@@ -3469,7 +3469,7 @@ def main():
             with c19:
                 dpo_fig = plot_dpo_new(df_primary, close_col, t)
                 if dpo_fig:
-                    st.plotly_chart(dpo_fig, use_container_width=True)
+                    st.plotly_chart(dpo_fig, use_container_width=True, key="dpo_adv_patterns")
             with c20:
                 tema_fig = plot_tema(df_primary, date_col, close_col, t)
                 st.plotly_chart(tema_fig, use_container_width=True)
@@ -3577,7 +3577,7 @@ def main():
                 st.plotly_chart(plot_trend_intensity(df_primary, close_col, t), use_container_width=True)
             with c10:
                 st.markdown(f"<div class='section-header'>Detrended Price Osc</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_dpo_new(df_primary, close_col, t), use_container_width=True)
+                st.plotly_chart(plot_dpo_new(df_primary, close_col, t), use_container_width=True, key="dpo_adv_patterns2")
 
     # ── 7. RISK & OUTLIERS ────────────────────
     with tabs[7]:
