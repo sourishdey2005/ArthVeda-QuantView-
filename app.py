@@ -2322,6 +2322,319 @@ def plot_aroon_new(df, close_col, t, window=25):
     return fig_update(fig, t, f"Aroon Indicator ({window})")
 
 
+def plot_turtle_trade(df, close_col, col_map, t, short=20, long=55):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    entry_short = high.rolling(short).max()
+    entry_long = high.rolling(long).max()
+    exit_short = low.rolling(short).min()
+    exit_long = low.rolling(long).min()
+    signal = pd.Series(0, index=close.index)
+    for i in range(long, len(close)):
+        if close.iloc[i] > entry_short.iloc[i-1]:
+            signal.iloc[i] = 1
+        elif close.iloc[i] < exit_short.iloc[i-1]:
+            signal.iloc[i] = -1
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=entry_long, mode="lines", name=f"Long Entry ({long})",
+                            line=dict(color=t["green"], width=1, dash="dot")))
+    fig.add_trace(go.Scatter(y=exit_long, mode="lines", name=f"Long Exit ({short})",
+                            line=dict(color=t["red"], width=1, dash="dot")))
+    return fig_update(fig, t, f"Turtle Trading (Short={short}, Long={long})")
+
+
+def plot_ichimoku_acloud(col_map, t):
+    pass
+
+
+def plot_chandelier_exit(df, close_col, col_map, t, period=22, multiplier=3):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    atr = (high - low).rolling(period).mean()
+    long_exit = high.rolling(period).max() - multiplier * atr
+    short_exit = low.rolling(period).min() + multiplier * atr
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=long_exit, mode="lines", name="Chandelier Long",
+                            line=dict(color=t["red"], width=1.5)))
+    fig.add_trace(go.Scatter(y=short_exit, mode="lines", name="Chandelier Short",
+                            line=dict(color=t["green"], width=1.5)))
+    return fig_update(fig, t, f"Chandelier Exit ({period},{multiplier})")
+
+
+def plot_keltner_squeeze(df, close_col, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    ma = close.rolling(20).mean()
+    tr = high - low
+    kc_upper = ma + 2 * tr.rolling(20).mean()
+    kc_lower = ma - 2 * tr.rolling(20).mean()
+    bb_upper = ma + 2 * close.rolling(20).std()
+    bb_lower = ma - 2 * close.rolling(20).std()
+    squeeze = (bb_lower > kc_lower) & (bb_upper < kc_upper)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=kc_upper, mode="lines", name="KC Upper",
+                            line=dict(color=t["cyan"], width=1)))
+    fig.add_trace(go.Scatter(y=kc_lower, mode="lines", name="KC Lower",
+                            line=dict(color=t["cyan"], width=1)))
+    fig.add_trace(go.Scatter(y=bb_upper, mode="lines", name="BB Upper",
+                            line=dict(color=t["purple"], width=1, dash="dot")))
+    fig.add_trace(go.Scatter(y=bb_lower, mode="lines", name="BB Lower",
+                            line=dict(color=t["purple"], width=1, dash="dot")))
+    return fig_update(fig, t, "Keltner Squeeze")
+
+
+def plot_常(t):
+    return None
+
+
+def plot_parabolic_sar_new(df, col_map, t, af=0.02, max_af=0.2):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    sar = [low.iloc[0]]
+    trend = [1]
+    af_val = af
+    ep = high.iloc[0]
+    for i in range(1, len(close)):
+        if trend[-1] == 1:
+            sar.append(sar[-1] + af_val * (ep - sar[-1]))
+            if low.iloc[i] < sar[-1]:
+                trend.append(-1)
+                sar[-1] = ep
+                ep = low.iloc[i]
+                af_val = af
+            else:
+                trend.append(1)
+                if high.iloc[i] > ep:
+                    ep = high.iloc[i]
+                    af_val = min(af_val + af, max_af)
+        else:
+            sar.append(sar[-1] - af_val * (sar[-1] - ep))
+            if high.iloc[i] > sar[-1]:
+                trend.append(1)
+                sar[-1] = ep
+                ep = high.iloc[i]
+                af_val = af
+            else:
+                trend.append(-1)
+                if low.iloc[i] < ep:
+                    ep = low.iloc[i]
+                    af_val = min(af_val + af, max_af)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=sar, mode="markers", name="SAR",
+                            marker=dict(color=t["red"], size=4)))
+    return fig_update(fig, t, f"Parabolic SAR (af={af}, max={max_af})")
+
+
+def plot_kama_adaptive(df, close_col, t, fast=2, slow=30):
+    close = df[close_col].dropna()
+    if len(close) < slow:
+        return None
+    def kama_inner(close_series):
+        result = []
+        for i in range(len(close_series)):
+            if i < slow:
+                result.append(close_series.iloc[i])
+            else:
+                tail = close_series.iloc[i-slow:i]
+                if len(tail) > 0:
+                    result.append(tail.mean())
+                else:
+                    result.append(close_series.iloc[i])
+        return pd.Series(result, index=close_series.index)
+    kama = kama_inner(close)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=kama, mode="lines", name="KAMA",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"KAMA Adaptive (fast={fast}, slow={slow})")
+
+
+def plot_trix_new(df, close_col, t, period=15):
+    close = df[close_col].dropna()
+    if len(close) < period * 3:
+        return None
+    ema1 = close.ewm(span=period, adjust=False).mean()
+    ema2 = ema1.ewm(span=period, adjust=False).mean()
+    ema3 = ema2.ewm(span=period, adjust=False).mean()
+    trix = ema3.pct_change() * 100
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=trix, mode="lines", name="TRIX",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"TRIX ({period})")
+
+
+def plot_mass_index(df, col_map, t, fast=9, slow=25):
+    if not all(k in col_map for k in ["high", "low"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    hl_range = high - low
+    ema1 = hl_range.ewm(span=fast, adjust=False).mean()
+    ema2 = ema1.ewm(span=fast, adjust=False).mean()
+    mass = ema2.ewm(span=slow, adjust=False).sum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=mass, mode="lines", name="Mass Index",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=27, line_dash="dash", line_color=t["green"])
+    fig.add_hline(y=26.5, line_dash="dash", line_color=t["red"])
+    return fig_update(fig, t, f"Mass Index (fast={fast}, slow={slow})")
+
+
+def plot_dpo_old(df, date_col, close_col, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    ma = close.rolling(window).mean()
+    dpo = close.shift(window // 2 + 1) - ma
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=dpo, mode="lines", name="DPO",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Detrended Price Oscillator ({window})")
+
+
+def plot_kst_new(close_col, t, roc1=10, roc2=15, roc3=20, roc4=30, sma1=10, sma2=10, sma3=10, sma4=15, signal=9):
+    close = close_col.dropna()
+    if len(close) < roc4 + sma4 + signal:
+        return None
+    rcma1 = close.pct_change(roc1).rolling(sma1).mean()
+    rcma2 = close.pct_change(roc2).rolling(sma2).mean()
+    rcma3 = close.pct_change(roc3).rolling(sma3).mean()
+    rcma4 = close.pct_change(roc4).rolling(sma4).mean()
+    kst = rcma1 * 1 + rcma2 * 2 + rcma3 * 3 + rcma4 * 4
+    kst_signal = kst.rolling(signal).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=kst, mode="lines", name="KST",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_trace(go.Scatter(y=kst_signal, mode="lines", name="Signal",
+                            line=dict(color=t["red"], width=1.5)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, "Know Sure Thing")
+
+
+def plot_ppo_old(close_col, t, fast=12, slow=26, signal=9):
+    close = close_col.dropna()
+    if len(close) < slow + signal:
+        return None
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    ppo = ((ema_fast - ema_slow) / ema_slow) * 100
+    ppo_signal = ppo.ewm(span=signal, adjust=False).mean()
+    ppo_hist = ppo - ppo_signal
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ppo, mode="lines", name="PPO",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_trace(go.Scatter(y=ppo_signal, mode="lines", name="Signal",
+                            line=dict(color=t["red"], width=1.5)))
+    fig.add_trace(go.Bar(x=ppo_hist.index, y=ppo_hist, name="Histogram",
+                        marker_color=t["purple"]))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"PPO (fast={fast}, slow={slow})")
+
+
+def plot_ultimate_oscillator(df, col_map, t, p1=7, p2=14, p3=28):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    prev_close = close.shift(1)
+    bp = close - pd.concat([prev_close, low], axis=1).min(axis=1)
+    tr = pd.concat([high, close], axis=1).max(axis=1) - pd.concat([prev_close, low], axis=1).min(axis=1)
+    avg7 = bp.rolling(p1).sum() / tr.rolling(p1).sum()
+    avg14 = bp.rolling(p2).sum() / tr.rolling(p2).sum()
+    avg28 = bp.rolling(p3).sum() / tr.rolling(p3).sum()
+    uo = 100 * ((4 * avg7) + (2 * avg14) + avg28) / 7
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=uo, mode="lines", name="Ultimate Osc",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=70, line_dash="dash", line_color=t["red"])
+    fig.add_hline(y=30, line_dash="dash", line_color=t["green"])
+    return fig_update(fig, t, f"Ultimate Osc ({p1},{p2},{p3})")
+
+
+def plot_vwap_new(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    volume = df[col_map["volume"]]
+    typical = (high + low + close) / 3
+    vwap = (typical * volume).cumsum() / volume.cumsum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=vwap, mode="lines", name="VWAP",
+                            line=dict(color=t["purple"], width=2)))
+    return fig_update(fig, t, "VWAP")
+
+
+def plot_chaikin_oscillator(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    volume = df[col_map["volume"]]
+    accum_dist = ((close - low) - (high - close)) / (high - low) * volume
+    accum_dist = accum_dist.fillna(0).cumsum()
+    ema3 = accum_dist.ewm(span=3, adjust=False).mean()
+    ema10 = accum_dist.ewm(span=10, adjust=False).mean()
+    chaikin = ema3 - ema10
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=chaikin, mode="lines", name="Chaikin",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, "Chaikin Oscillator")
+
+
+def plot_money_flow_index(df, col_map, t, period=14):
+    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    volume = df[col_map["volume"]]
+    typical = (high + low + close) / 3
+    money_flow = typical * volume
+    positive_flow = np.where(typical > typical.shift(1), money_flow, 0)
+    negative_flow = np.where(typical < typical.shift(1), money_flow, 0)
+    positive_mf = pd.Series(positive_flow).rolling(period).sum()
+    negative_mf = pd.Series(negative_flow).rolling(period).sum()
+    mfi = 100 - (100 / (1 + positive_mf / negative_mf))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=mfi, mode="lines", name="MFI",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=80, line_dash="dash", line_color=t["red"])
+    fig.add_hline(y=20, line_dash="dash", line_color=t["green"])
+    return fig_update(fig, t, f"Money Flow Index ({period})")
+
+
 # ─────────────────────────────────────────────
 # SUMMARY STATISTICS
 
@@ -3578,6 +3891,53 @@ def main():
             with c10:
                 st.markdown(f"<div class='section-header'>Detrended Price Osc</div>", unsafe_allow_html=True)
                 st.plotly_chart(plot_dpo_new(df_primary, close_col, t), use_container_width=True, key="dpo_adv_patterns2")
+
+            if all(k in col_map for k in ["high", "low", "close"]):
+                st.markdown(f"<div class='section-header'>Chandelier Exit</div>", unsafe_allow_html=True)
+                ce_fig = plot_chandelier_exit(df_primary, close_col, col_map, t)
+                if ce_fig:
+                    st.plotly_chart(ce_fig, use_container_width=True)
+
+            st.markdown(f"<div class='section-header'>Keltner Squeeze</div>", unsafe_allow_html=True)
+            ks_fig = plot_keltner_squeeze(df_primary, close_col, col_map, t)
+            if ks_fig:
+                st.plotly_chart(ks_fig, use_container_width=True)
+
+            c11, c12 = st.columns(2)
+            with c11:
+                st.markdown(f"<div class='section-header'>Parabolic SAR</div>", unsafe_allow_html=True)
+                psar_fig = plot_parabolic_sar_new(df_primary, col_map, t)
+                if psar_fig:
+                    st.plotly_chart(psar_fig, use_container_width=True)
+            with c12:
+                st.markdown(f"<div class='section-header'>TRIX</div>", unsafe_allow_html=True)
+                trix_fig = plot_trix_new(df_primary, close_col, t)
+                if trix_fig:
+                    st.plotly_chart(trix_fig, use_container_width=True)
+
+            if all(k in col_map for k in ["high", "low", "close"]):
+                st.markdown(f"<div class='section-header'>Mass Index</div>", unsafe_allow_html=True)
+                mi_fig = plot_mass_index(df_primary, col_map, t)
+                if mi_fig:
+                    st.plotly_chart(mi_fig, use_container_width=True)
+
+            c13, c14 = st.columns(2)
+            with c13:
+                st.markdown(f"<div class='section-header'>Ultimate Oscillator</div>", unsafe_allow_html=True)
+                uo_fig = plot_ultimate_oscillator(df_primary, col_map, t)
+                if uo_fig:
+                    st.plotly_chart(uo_fig, use_container_width=True)
+            with c14:
+                st.markdown(f"<div class='section-header'>Chaikin Oscillator</div>", unsafe_allow_html=True)
+                ck_fig = plot_chaikin_oscillator(df_primary, col_map, t)
+                if ck_fig:
+                    st.plotly_chart(ck_fig, use_container_width=True)
+
+            if all(k in col_map for k in ["high", "low", "close", "volume"]):
+                st.markdown(f"<div class='section-header'>Money Flow Index</div>", unsafe_allow_html=True)
+                mfi_fig = plot_money_flow_index(df_primary, col_map, t)
+                if mfi_fig:
+                    st.plotly_chart(mfi_fig, use_container_width=True)
 
     # ── 7. RISK & OUTLIERS ────────────────────
     with tabs[7]:
