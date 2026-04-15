@@ -2667,7 +2667,6 @@ def main():
         "Trend & Pattern",
         "Risk & Outliers",
         "Candlestick Charts",
-        "3D Visualizations",
         "Multi-Symbol",
         "Export",
     ])
@@ -3112,7 +3111,7 @@ def main():
                 st.plotly_chart(plot_ticks(df_primary, close_col, t, primary_sym), use_container_width=True)
 
     # ── 10. MULTI-SYMBOL ───────────────────────
-    with tabs[9]:
+    with tabs[8]:
         if not is_multi:
             st.info("Multi-symbol views require a dataset with multiple symbols (Symbol/Ticker column).")
         elif close_col is None or date_col is None:
@@ -3144,7 +3143,7 @@ def main():
                 st.plotly_chart(plot_correlation_heatmap(pivot_ret, t), use_container_width=True)
 
     # ── 12. EXPORT ─────────────────────────────
-    with tabs[10]:
+    with tabs[9]:
         st.markdown(f"<div class='section-header'>Export Data</div>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
