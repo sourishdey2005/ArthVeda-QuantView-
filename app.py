@@ -91,10 +91,15 @@ def apply_css(t):
         background-color: {t['bg']};
         color: {t['text']};
     }}
-    .stApp {{ background-color: {t['bg']}; }}
+    .stApp {{ 
+        background-color: {t['bg']}; 
+        background-image: radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.05) 0%, transparent 40%),
+                          radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+    }}
     section[data-testid="stSidebar"] {{
         background-color: {t['surface']};
         border-right: 1px solid {t['border']};
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
     }}
     section[data-testid="stSidebar"]::before {{
         content: "";
@@ -113,6 +118,17 @@ def apply_css(t):
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        position: relative;
+    }}
+    h1::after {{
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 100px;
+        height: 3px;
+        background: linear-gradient(90deg, {t['accent']}, transparent);
+        border-radius: 2px;
     }}
     .metric-card {{
         background: linear-gradient(145deg, {t['surface']}, {t['bg']});
@@ -125,6 +141,7 @@ def apply_css(t):
     .metric-card:hover {{
         transform: translateY(-2px);
         box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+        border-color: {t['accent']};
     }}
     .metric-value {{
         font-family: 'IBM Plex Mono', monospace;
@@ -159,6 +176,14 @@ def apply_css(t):
         height: 2px;
         background: linear-gradient(90deg, {t['accent']}, transparent);
     }}
+    .glass-panel {{
+        background: linear-gradient(135deg, rgba(30,30,40,0.8), rgba(20,20,30,0.9));
+        backdrop-filter: blur(10px);
+        border: 1px solid {t['border']};
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }}
     footer {{ color: {t['subtext']}; font-size: 0.75rem; text-align: center; padding: 1.5rem 0 0.5rem 0; border-top: 1px solid {t['border']}; margin-top: 2rem; }}
     .stDataFrame {{ border: 1px solid {t['border']}; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }}
     div[data-testid="metric-container"] {{
@@ -174,6 +199,11 @@ def apply_css(t):
         color: {t['subtext']};
         border-radius: 8px;
         font-weight: 500;
+        transition: all 0.2s ease;
+    }}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: linear-gradient(135deg, {t['accent']}, {t['purple']});
+        color: white;
     }}
     .stButton > button {{
         background: linear-gradient(135deg, {t['accent']}, {t['purple']});
@@ -2633,6 +2663,339 @@ def plot_money_flow_index(df, col_map, t, period=14):
     fig.add_hline(y=80, line_dash="dash", line_color=t["red"])
     fig.add_hline(y=20, line_dash="dash", line_color=t["green"])
     return fig_update(fig, t, f"Money Flow Index ({period})")
+
+
+def plot_ulcer_index(df, close_col, t, period=14):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    pct_drawdown = ((close - close.rolling(period).max()) / close.rolling(period).max()) * 100
+    ulcer = np.sqrt((pct_drawdown ** 2).rolling(period).mean())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ulcer, mode="lines", name="Ulcer Index",
+                            line=dict(color=t["red"], width=2))
+    return fig_update(fig, t, f"Ulcer Index ({period})")
+
+
+def plot_ulcer_index_new(df, close_col, t, period=14):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    pct_drawdown = ((close - close.rolling(period).max()) / close.rolling(period).max()) * 100
+    ulcer = np.sqrt((pct_drawdown ** 2).rolling(period).mean())
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ulcer, mode="lines", name="Ulcer Index",
+                            line=dict(color=t["red"], width=2)))
+    return fig_update(fig, t, f"Ulcer Index ({period})")
+
+
+def plot_woods_ulcer_index(df, close_col, t, period=14):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    pct_drawdown = ((close - close.rolling(period).max()) / close.rolling(period).max()) * 100
+    ulcer = (pct_drawdown ** 2).rolling(period).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ulcer, mode="lines", name="Woods Ulcer",
+                            line=dict(color=t["orange"], width=2)))
+    return fig_update(fig, t, f"Woods Ulcer Index ({period})")
+
+
+def plot_chaikin_money_flow(df, col_map, t, period=20):
+    if not all(k in col_map for k in ["high", "low", "close", "volume"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    volume = df[col_map["volume"]]
+    money_flow = ((close - low) - (high - close)) / (high - low) * volume
+    cmf = money_flow.rolling(period).sum() / volume.rolling(period).sum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=cmf, mode="lines", name="CMF",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Chaikin Money Flow ({period})")
+
+
+def plot_force_index(df, close_col, vol_col, t, period=13):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    volume = df[vol_col]
+    force = (close.diff() * volume).ewm(span=period, adjust=False).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=force, mode="lines", name="Force Index",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Force Index ({period})")
+
+
+def plot_ergodic_oscillator(df, close_col, col_map, t):
+    if not all(k in col_map for k in ["high", "low"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    hl_avg = (high + low) / 2
+    change = abs(close - hl_avg)
+    volatility = (high - low)
+    ergodic = change.rolling(8).sum() / volatility.rolling(8).sum() * 100
+    signal = ergodic.rolling(5).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=ergodic, mode="lines", name="Ergodic",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_trace(go.Scatter(y=signal, mode="lines", name="Signal",
+                            line=dict(color=t["red"], width=1.5)))
+    fig.add_hline(y=50, line_dash="dash", line_color=t["subtext"])
+    return fig_update(fig, t, "Ergodic Oscillator")
+
+
+def plot_true_strength_index(df, close_col, t, fast=12, slow=26):
+    close = df[close_col].dropna()
+    if len(close) < slow:
+        return None
+    mom = close.diff()
+    abs_mom = abs(mom)
+    ema_mom = mom.ewm(span=fast, adjust=False).mean()
+    ema_abs_mom = abs_mom.ewm(span=fast, adjust=False).mean()
+    tsi = (ema_mom.ewm(span=slow, adjust=False).mean() / ema_abs_mom.ewm(span=slow, adjust=False).mean()) * 100
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=tsi, mode="lines", name="TSI",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"True Strength Index")
+
+
+def plot_dennis_martingale(df, close_col, t, period=20):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    high = close.rolling(period).max()
+    low = close.rolling(period).min()
+    dm = (close - low) / (high - low) * 100
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=dm, mode="lines", name="Dennis Martingale",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_hline(y=50, line_dash="dash", line_color=t["subtext"])
+    return fig_update(fig, t, f"Dennis Martingale ({period})")
+
+
+def plot_prings_oscillator(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 30:
+        return None
+    ma1 = close.ewm(span=10, adjust=False).mean()
+    ma2 = close.ewm(span=30, adjust=False).mean()
+    prings = ((ma1 - ma2) / ma2) * 100
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=prings, mode="lines", name="Prings Osc",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, "Prings Momentum Oscillator")
+
+
+def plot_qstick_new(df, date_col, close_col, t, fast=5, slow=15):
+    close = df[close_col].dropna()
+    if len(close) < slow:
+        return None
+    opens = close  # Approximate with close if no open
+    qstick = (close - opens).rolling(fast).mean() - (close - opens).rolling(slow).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=qstick, mode="lines", name="Qstick",
+                            line=dict(color=t["yellow"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Qstick (fast={fast}, slow={slow})")
+
+
+def plot_stochastic_momentum(df, close_col, col_map, t, k_period=5, d_period=3):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    ll = low.rolling(k_period).min()
+    hh = high.rolling(k_period).max()
+    stoch_k = ((close - ll) / (hh - ll)) * 100
+    stoch_d = stoch_k.rolling(d_period).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=stoch_k, mode="lines", name="%K",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_trace(go.Scatter(y=stoch_d, mode="lines", name="%D",
+                            line=dict(color=t["red"], width=1.5)))
+    fig.add_hline(y=80, line_dash="dash", line_color=t["red"])
+    fig.add_hline(y=20, line_dash="dash", line_color=t["green"])
+    return fig_update(fig, t, f"Stochastic Momentum")
+
+
+def plot_dpo_new(df, date_col, close_col, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    ma = close.rolling(window).mean()
+    dpo = close.shift(window // 2 + 1) - ma
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=dpo, mode="lines", name="DPO",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Detrended Price Oscillator ({window})")
+
+
+def plot_elder_ray(df, close_col, col_map, t):
+    if not all(k in col_map for k in ["high", "low"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[close_col]
+    bull_power = high - close.ewm(span=13, adjust=False).mean()
+    bear_power = low - close.ewm(span=13, adjust=False).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=bull_power, mode="lines", name="Bull Power",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_trace(go.Scatter(y=bear_power, mode="lines", name="Bear Power",
+                            line=dict(color=t["red"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, "Elder-Ray")
+
+
+def plot_market_facilitation(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "volume"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    volume = df[col_map["volume"]]
+    mfi = (high - low) * volume
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=mfi, mode="lines", name="Market Facilitation",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, "Market Facilitation Index")
+
+
+def plot_inertia(df, close_col, t, period=20):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    r2 = 1 - (close.diff().var() / close.var())
+    inertia = close.ewm(span=period, adjust=False).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=inertia, mode="lines", name="Inertia",
+                            line=dict(color=t["purple"], width=2)))
+    return fig_update(fig, t, f"Inertia ({period})")
+
+
+def plot_kaufman_adaptive_ma(df, close_col, t, period=20):
+    close = df[close_col].dropna()
+    if len(close) < period:
+        return None
+    def kama_inner(series, period):
+        result = []
+        for i in range(len(series)):
+            if i < period:
+                result.append(series.iloc[i])
+            else:
+                tail = series.iloc[i-period:i]
+                if len(tail) > 0:
+                    result.append(tail.mean())
+                else:
+                    result.append(series.iloc[i])
+        return pd.Series(result, index=series.index)
+    kama = kama_inner(close, period)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=kama, mode="lines", name="KAMA",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"KAMA ({period})")
+
+
+def plot_tdma(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 50:
+        return None
+    ma1 = close.ewm(span=10, adjust=False).mean()
+    ma2 = close.ewm(span=30, adjust=False).mean()
+    ma3 = close.ewm(span=50, adjust=False).mean()
+    tdma = (ma1 + ma2 + ma3) / 3
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=tdma, mode="lines", name="TDMA",
+                            line=dict(color=t["purple"], width=2)))
+    return fig_update(fig, t, "Triple DMA")
+
+
+def plot_zigzag_new(df, close_col, t, threshold=0.05):
+    close = df[close_col].dropna()
+    if len(close) < 10:
+        return None
+    zigzag = []
+    direction = 0
+    last_extreme = close.iloc[0]
+    for price in close:
+        if direction == 0:
+            if price > last_extreme * (1 + threshold):
+                direction = 1
+                last_extreme = price
+            elif price < last_extreme * (1 - threshold):
+                direction = -1
+                last_extreme = price
+            zigzag.append(close.iloc[0])
+        elif direction == 1:
+            if price > last_extreme:
+                last_extreme = price
+            elif price < last_extreme * (1 - threshold):
+                zigzag.append(last_extreme)
+                direction = -1
+                last_extreme = price
+                zigzag.append(price)
+            else:
+                zigzag.append(last_extreme)
+        else:
+            if price < last_extreme:
+                last_extreme = price
+            elif price > last_extreme * (1 + threshold):
+                zigzag.append(last_extreme)
+                direction = 1
+                last_extreme = price
+                zigzag.append(price)
+            else:
+                zigzag.append(last_extreme)
+    zigzag = pd.Series(zigzag, index=close.index[:len(zigzag)])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=zigzag, mode="lines", name="Zigzag",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"Zigzag ({threshold*100}%)")
+
+
+def plot_momentum_divergence(df, close_col, vol_col, t, period=20):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    volume = df[vol_col]
+    price_mom = close.diff(period)
+    vol_mom = volume.diff(period)
+    divergence = price_mom - vol_mom
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=divergence, mode="lines", name="Momentum Div",
+                            line=dict(color=t["red"], width=2))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Momentum Divergence ({period})")
+
+
+def plot_momentum_divergence_new(df, close_col, vol_col, t, period=20):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    volume = df[vol_col]
+    price_mom = close.diff(period)
+    vol_mom = volume.diff(period)
+    divergence = price_mom - vol_mom
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=divergence, mode="lines", name="Momentum Div",
+                            line=dict(color=t["red"], width=2))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Momentum Divergence ({period})")
 
 
 # ─────────────────────────────────────────────
