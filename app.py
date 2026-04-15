@@ -1956,8 +1956,268 @@ def plot_ticks(df, close_col, t, symbol=None, n_ticks=50):
 
 
 # ─────────────────────────────────────────────
-# 3D VISUALIZATIONS (10 more)
+# ADVANCED PATTERN VISUALIZATIONS (15 more)
 # ─────────────────────────────────────────────
+
+def plot_pivot_reversal(df, close_col, date_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 20:
+        return None
+    returns = close.pct_change()
+    pivot = pd.Series(np.where(returns > 0.01, 1, np.where(returns < -0.01, -1, 0)), index=close.index)
+    pivot = pivot.replace(0, np.nan).ffill().fillna(0)
+    fig = go.Figure()
+    colors = [t["green"] if v == 1 else t["red"] if v == -1 else t["subtext"] for v in pivot]
+    fig.add_trace(go.Scatter(y=pivot, mode="lines", name="Pivot Signal",
+                            line=dict(color=t["cyan"], width=1)))
+    return fig_update(fig, t, "Pivot Reversal Signal")
+
+
+def plot_volume_weighted_price(df, close_col, vol_col, t):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    vol = df[vol_col]
+    vwap = (close * vol).cumsum() / vol.cumsum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=vwap, mode="lines", name="VWAP",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1, dash="dot")))
+    return fig_update(fig, t, "VWAP vs Close")
+
+
+def plot_rainbow_chart(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 50:
+        return None
+    ma_colors = [t["cyan"], t["green"], t["yellow"], t["orange"], t["pink"], t["purple"], t["red"]]
+    fig = go.Figure()
+    for i, window in enumerate([5, 10, 20, 30, 50, 100, 200]):
+        if window < len(close):
+            ma = close.rolling(window).mean()
+            fig.add_trace(go.Scatter(y=ma, mode="lines", name=f"MA{window}",
+                                    line=dict(color=ma_colors[i], width=1)))
+    return fig_update(fig, t, "Rainbow Chart")
+
+
+def plot_linear_regression(df, date_col, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 10:
+        return None
+    x = np.arange(len(close))
+    y = close.values
+    slope, intercept = np.polyfit(x, y, 1)
+    line = slope * x + intercept
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=line, mode="lines", name=f"Linear (m={slope:.4f})",
+                            line=dict(color=t["accent"], width=2)))
+    return fig_update(fig, t, "Linear Regression Trend")
+
+
+def plot_poly_trend(df, close_col, t, degree=3):
+    close = df[close_col].dropna()
+    if len(close) < degree + 2:
+        return None
+    x = np.arange(len(close))
+    y = close.values
+    coeffs = np.polyfit(x, y, degree)
+    poly = np.polyval(coeffs, x)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=poly, mode="lines", name=f"Poly Trend (deg={degree})",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"Polynomial Trend (degree={degree})")
+
+
+def plot_ichimoku_cloud(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    nine_period = high.rolling(9).max()
+    nine_low = low.rolling(9).min()
+    tenkan = (nine_period + nine_low) / 2
+    period = high.rolling(26).max()
+    period_low = low.rolling(26).min()
+    kijun = (period + period_low) / 2
+    senkou_a = ((tenkan + kijun) / 2).shift(26)
+    period52 = high.rolling(52).max()
+    period52_low = low.rolling(52).min()
+    senkou_b = ((period52 + period52_low) / 2).shift(26)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=senkou_a, mode="lines", name="Senkou A",
+                            line=dict(color=t["cyan"], width=1), fill="tonexty",
+                            fillcolor=f"rgba(6, 182, 212, 0.2)"))
+    fig.add_trace(go.Scatter(y=senkou_b, mode="lines", name="Senkou B",
+                            line=dict(color=t["pink"], width=1)))
+    fig.add_trace(go.Scatter(y=tenkan, mode="lines", name="Tenkan",
+                            line=dict(color=t["yellow"], width=1)))
+    fig.add_trace(go.Scatter(y=kijun, mode="lines", name="Kijun",
+                            line=dict(color=t["purple"], width=1)))
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["green"], width=2)))
+    return fig_update(fig, t, "Ichimoku Cloud")
+
+
+def plot_elliott_wave(df, close_col, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    ma = close.rolling(window).mean()
+    deviation = close - ma
+    wave = deviation.rolling(5).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=wave, mode="lines", name="Elliott Wave",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"Elliott Wave ({window} period)")
+
+
+def plot_hurst_exponent(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 100:
+        return None
+    lags = np.arange(2, min(50, len(close) // 2))
+    tau = []
+    for lag in lags:
+        pp = np.subtract(close[lag:], close[:-lag])
+        tau.append(np.std(pp))
+    tau = np.array(tau)
+    lags = lags.astype(float)
+    slopes, intercept = np.polyfit(np.log(lags), np.log(tau), 1)
+    hurst = slopes
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=lags, y=tau, mode="markers", name="Tau",
+                            marker=dict(color=t["subtext"], size=4)))
+    fit_line = np.exp(intercept) * lags ** slopes
+    fig.add_trace(go.Scatter(x=lags, y=fit_line, mode="lines", name="Fit",
+                            line=dict(color=t["accent"], width=2)))
+    fig.update_layout(xaxis_type="log", yaxis_type="log")
+    return fig_update(fig, t, f"Hurst Exponent (H={hurst:.3f})")
+
+
+def plot_auto_correlation(df, close_col, t, max_lag=50):
+    close = df[close_col].dropna()
+    if len(close) < max_lag + 10:
+        return None
+    acf = [1.0]
+    mean = close.mean()
+    var = ((close - mean) ** 2).sum()
+    for lag in range(1, max_lag + 1):
+        cov = ((close[:-lag] - mean) * (close[lag:] - mean)).sum()
+        acf.append(cov / var)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=list(range(len(acf))), y=acf, name="Autocorr",
+                        marker_color=t["cyan"]))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    fig.add_hline(y=1.96 / np.sqrt(len(close)), line_dash="dash", line_color=t["green"], opacity=0.5)
+    fig.add_hline(y=-1.96 / np.sqrt(len(close)), line_dash="dash", line_color=t["red"], opacity=0.5)
+    return fig_update(fig, t, f"Autocorrelation (lag={max_lag})")
+
+
+def plot_seasonality(df, date_col, close_col, t):
+    if not date_col:
+        return None
+    df2 = df.copy()
+    df2["_d"] = pd.to_datetime(df2[date_col], errors="coerce")
+    df2 = df2.dropna(subset=["_d"])
+    if df2.empty:
+        return None
+    df2["month"] = df2["_d"].dt.month
+    df2["year"] = df2["_d"].dt.year
+    seasonal = df2.groupby("month")[close_col].mean()
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=seasonal.index, y=seasonal.values, name="Avg Close",
+                        marker_color=t["accent"]))
+    return fig_update(fig, t, "Seasonality by Month")
+
+
+def plot_hourly_heatmap(df, date_col, close_col, t):
+    if not date_col:
+        return None
+    df2 = df.copy()
+    df2["_d"] = pd.to_datetime(df2[date_col], errors="coerce")
+    df2 = df2.dropna(subset=["_d"])
+    if df2.empty:
+        return None
+    df2["hour"] = df2["_d"].dt.hour
+    df2["day"] = df2["_d"].dt.dayofweek
+    pivot = df2.pivot_table(index="day", columns="hour", values=close_col, aggfunc="mean")
+    fig = go.Figure(data=go.Heatmap(z=pivot.values, x=pivot.columns, y=pivot.index,
+                                    colorscale="Viridis", colorbar=dict(title="Avg Close")))
+    return fig_update(fig, t, "Hourly-Daily Heatmap")
+
+
+def plot_volatility_regime(df, close_col, t, short=10, long=30):
+    close = df[close_col].dropna()
+    if len(close) < long + 10:
+        return None
+    vol_short = close.pct_change().rolling(short).std()
+    vol_long = close.pct_change().rolling(long).std()
+    regime = vol_short > vol_long
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=vol_short, mode="lines", name=f"Vol ({short}d)",
+                            line=dict(color=t["accent"], width=1)))
+    fig.add_trace(go.Scatter(y=vol_long, mode="lines", name=f"Vol ({long}d)",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_trace(go.Scatter(y=regime.astype(int) * vol_long.max(), mode="lines",
+                            name="High Vol Regime", line=dict(color=t["red"], width=0.5, dash="dot")))
+    return fig_update(fig, t, f"Volatility Regime (Short={short}, Long={long})")
+
+
+def plot_momentum_oscillator(df, close_col, t, fast=5, slow=20):
+    close = df[close_col].dropna()
+    if len(close) < slow + 5:
+        return None
+    mom_fast = close.pct_change(fast)
+    mom_slow = close.pct_change(slow)
+    osc = mom_fast - mom_slow
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=osc, mode="lines", name="Momentum Osc",
+                            line=dict(color=t["cyan"], width=1.5)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Momentum Oscillator (fast={fast}, slow={slow})")
+
+
+def plot_volume_pressure(df, close_col, vol_col, t):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    vol = df[vol_col]
+    up_vol = np.where(close.pct_change() > 0, vol, 0)
+    down_vol = np.where(close.pct_change() < 0, vol, 0)
+    up_press = pd.Series(up_vol).rolling(20).sum()
+    down_press = pd.Series(down_vol).rolling(20).sum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=up_press, mode="lines", name="Buying Pressure",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_trace(go.Scatter(y=down_press, mode="lines", name="Selling Pressure",
+                            line=dict(color=t["red"], width=2)))
+    return fig_update(fig, t, "Volume Pressure (20d)")
+
+
+def plot_order_flow(df, close_col, vol_col, t):
+    if not vol_col:
+        return None
+    close = df[close_col]
+    vol = df[vol_col]
+    delta = np.sign(close.diff()) * vol
+    cum_delta = delta.cumsum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=cum_delta, mode="lines", name="Cumulative Order Flow",
+                            line=dict(color=t["cyan"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, "Order Flow Imbalance")
+
+
+# ─────────────────────────────────────────────
+# SUMMARY STATISTICS
 
 def plot_3d_price_surface(df, col_map, t):
     if not all(k in col_map for k in ["date", "high", "low", "close"]):
@@ -2665,6 +2925,7 @@ def main():
         "Statistical Insights",
         "Technical Indicators",
         "Trend & Pattern",
+        "Advanced Patterns",
         "Risk & Outliers",
         "Candlestick Charts",
         "Multi-Symbol",
@@ -3030,8 +3291,75 @@ def main():
                 st.plotly_chart(plot_breakout(df_primary, date_col, close_col, t),
                                 use_container_width=True)
 
-    # ── 7. RISK & OUTLIERS ────────────────────
+    # ── 6. ADVANCED PATTERNS ───────────────────
     with tabs[6]:
+        if close_col is None or date_col is None:
+            st.info("Close/Date columns required.")
+        else:
+            st.markdown(f"<div class='section-header'>Pivot Reversal</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_pivot_reversal(df_primary, close_col, date_col, t), use_container_width=True)
+
+            st.markdown(f"<div class='section-header'>VWAP vs Close</div>", unsafe_allow_html=True)
+            vwap_fig = plot_volume_weighted_price(df_primary, close_col, vol_col, t)
+            if vwap_fig:
+                st.plotly_chart(vwap_fig, use_container_width=True)
+
+            st.markdown(f"<div class='section-header'>Rainbow Chart</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_rainbow_chart(df_primary, close_col, t), use_container_width=True)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"<div class='section-header'>Linear Regression</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_linear_regression(df_primary, date_col, close_col, t), use_container_width=True)
+            with c2:
+                st.markdown(f"<div class='section-header'>Polynomial Trend</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_poly_trend(df_primary, close_col, t), use_container_width=True)
+
+            if all(k in col_map for k in ["high", "low", "close"]):
+                st.markdown(f"<div class='section-header'>Ichimoku Cloud</div>", unsafe_allow_html=True)
+                ichi_fig = plot_ichimoku_cloud(df_primary, col_map, t)
+                if ichi_fig:
+                    st.plotly_chart(ichi_fig, use_container_width=True)
+
+            c3, c4 = st.columns(2)
+            with c3:
+                st.markdown(f"<div class='section-header'>Elliott Wave</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_elliott_wave(df_primary, close_col, t), use_container_width=True)
+            with c4:
+                st.markdown(f"<div class='section-header'>Hurst Exponent</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_hurst_exponent(df_primary, close_col, t), use_container_width=True)
+
+            c5, c6 = st.columns(2)
+            with c5:
+                st.markdown(f"<div class='section-header'>Autocorrelation</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_auto_correlation(df_primary, close_col, t), use_container_width=True)
+            with c6:
+                st.markdown(f"<div class='section-header'>Seasonality</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_seasonality(df_primary, date_col, close_col, t), use_container_width=True)
+
+            if date_col:
+                st.markdown(f"<div class='section-header'>Hourly Heatmap</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_hourly_heatmap(df_primary, date_col, close_col, t), use_container_width=True)
+
+            c7, c8 = st.columns(2)
+            with c7:
+                st.markdown(f"<div class='section-header'>Volatility Regime</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_volatility_regime(df_primary, close_col, t), use_container_width=True)
+            with c8:
+                st.markdown(f"<div class='section-header'>Momentum Oscillator</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_momentum_oscillator(df_primary, close_col, t), use_container_width=True)
+
+            if vol_col:
+                c9, c10 = st.columns(2)
+                with c9:
+                    st.markdown(f"<div class='section-header'>Volume Pressure</div>", unsafe_allow_html=True)
+                    st.plotly_chart(plot_volume_pressure(df_primary, close_col, vol_col, t), use_container_width=True)
+                with c10:
+                    st.markdown(f"<div class='section-header'>Order Flow</div>", unsafe_allow_html=True)
+                    st.plotly_chart(plot_order_flow(df_primary, close_col, vol_col, t), use_container_width=True)
+
+    # ── 7. RISK & OUTLIERS ────────────────────
+    with tabs[7]:
         if close_col is None or date_col is None:
             st.info("Close/Date columns required.")
         else:
@@ -3111,7 +3439,7 @@ def main():
                 st.plotly_chart(plot_ticks(df_primary, close_col, t, primary_sym), use_container_width=True)
 
     # ── 10. MULTI-SYMBOL ───────────────────────
-    with tabs[8]:
+    with tabs[9]:
         if not is_multi:
             st.info("Multi-symbol views require a dataset with multiple symbols (Symbol/Ticker column).")
         elif close_col is None or date_col is None:
@@ -3143,7 +3471,7 @@ def main():
                 st.plotly_chart(plot_correlation_heatmap(pivot_ret, t), use_container_width=True)
 
     # ── 12. EXPORT ─────────────────────────────
-    with tabs[9]:
+    with tabs[10]:
         st.markdown(f"<div class='section-header'>Export Data</div>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         with c1:
