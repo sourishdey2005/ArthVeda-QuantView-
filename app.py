@@ -2493,7 +2493,7 @@ def plot_mass_index(df, col_map, t, fast=9, slow=25):
     hl_range = high - low
     ema1 = hl_range.ewm(span=fast, adjust=False).mean()
     ema2 = ema1.ewm(span=fast, adjust=False).mean()
-    mass = ema2.ewm(span=slow, adjust=False).sum()
+    mass = ema2.rolling(slow).sum()
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=mass, mode="lines", name="Mass Index",
                             line=dict(color=t["cyan"], width=2)))
