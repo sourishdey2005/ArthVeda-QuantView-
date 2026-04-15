@@ -2079,27 +2079,248 @@ def plot_elliott_wave(df, close_col, t, window=20):
     return fig_update(fig, t, f"Elliott Wave ({window} period)")
 
 
-def plot_hurst_exponent(df, close_col, t):
+def plot_demark_cycles(df, close_col, col_map, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    high = df.get(col_map.get("high", close_col), close)
+    low = df.get(col_map.get("low", close_col), close)
+    count = np.zeros(len(close))
+    for i in range(window, len(close)):
+        if close.iloc[i] > close.iloc[i-window]:
+            count[i] = 1
+        elif close.iloc[i] < close.iloc[i-window]:
+            count[i] = -1
+    count = pd.Series(count).rolling(3).sum()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=count * close.max() / 2, mode="lines", name="Demark Count",
+                            line=dict(color=t["cyan"], width=2)))
+    return fig_update(fig, t, f"Demark Countdown ({window}d)")
+
+
+def plot_wave_theory(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 50:
+        return None
+    ma10 = close.rolling(10).mean()
+    ma20 = close.rolling(20).mean()
+    ma50 = close.rolling(50).mean()
+    wave = np.where(ma10 > ma20, 1, np.where(ma20 > ma50, 0.5, 0))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=ma10, mode="lines", name="MA10",
+                            line=dict(color=t["cyan"], width=1.5)))
+    fig.add_trace(go.Scatter(y=ma20, mode="lines", name="MA20",
+                            line=dict(color=t["purple"], width=1.5)))
+    return fig_update(fig, t, "Neo Wave Theory")
+
+
+def plot_price_envelope(df, close_col, t, window=20, mult=2):
+    close = df[close_col].dropna()
+    if len(close) < window:
+        return None
+    ma = close.rolling(window).mean()
+    std = close.rolling(window).std()
+    upper = ma + mult * std
+    lower = ma - mult * std
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=ma, mode="lines", name="MA",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_trace(go.Scatter(y=upper, mode="lines", name="Upper",
+                            line=dict(color=t["red"], width=1, dash="dash")))
+    fig.add_trace(go.Scatter(y=lower, mode="lines", name="Lower",
+                            line=dict(color=t["green"], width=1, dash="dash")))
+    return fig_update(fig, t, f"Price Envelope ({window},{mult})")
+
+
+def plot_murrey_math(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 20:
+        return None
+    min_p = close.min()
+    max_p = close.max()
+    range_p = max_p - min_p
+    levels = [min_p + range_p * i / 8 for i in range(9)]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    for i, lvl in enumerate(levels):
+        fig.add_hline(y=lvl, line_dash="dot", line_color=t["purple"], opacity=0.3)
+        fig.add_annotation(x=0, y=lvl, text=f"{i}/8", showarrow=False,
+                          font=dict(color=t["subtext"], size=8))
+    return fig_update(fig, t, "Murrey Math Levels")
+
+
+def plot_pivot_points_standard(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    pp = (high + low + close) / 3
+    r1 = 2 * pp - low
+    s1 = 2 * pp - high
+    r2 = pp + (high - low)
+    s2 = pp - (high - low)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=pp, mode="lines", name="PP",
+                            line=dict(color=t["yellow"], width=2)))
+    fig.add_trace(go.Scatter(y=r1, mode="lines", name="R1",
+                            line=dict(color=t["red"], width=1, dash="dot")))
+    fig.add_trace(go.Scatter(y=s1, mode="lines", name="S1",
+                            line=dict(color=t["green"], width=1, dash="dot")))
+    return fig_update(fig, t, "Standard Pivot Points")
+
+
+def plot_fibonacci_arc(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 50:
+        return None
+    min_p = close.min()
+    max_p = close.max()
+    diff = max_p - min_p
+    levels = [max_p - diff * 0.236, max_p - diff * 0.382, max_p - diff * 0.5,
+              max_p - diff * 0.618, max_p - diff * 0.786]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    for i, lvl in enumerate([0.236, 0.382, 0.5, 0.618, 0.786]):
+        fig.add_hline(y=max_p - diff * lvl, line_dash="dash",
+                     line_color=t["cyan"], opacity=0.6)
+    return fig_update(fig, t, "Fibonacci Arc")
+
+
+def plot_fibonacci_timezones(df, close_col, date_col, t):
+    if not date_col:
+        return None
     close = df[close_col].dropna()
     if len(close) < 100:
         return None
-    lags = np.arange(2, min(50, len(close) // 2))
-    tau = []
-    for lag in lags:
-        pp = np.subtract(close[lag:], close[:-lag])
-        tau.append(np.std(pp))
-    tau = np.array(tau)
-    lags = lags.astype(float)
-    slopes, intercept = np.polyfit(np.log(lags), np.log(tau), 1)
-    hurst = slopes
+    df_temp = df.copy()
+    df_temp["_idx"] = range(len(df_temp))
+    peaks = df_temp["_idx"][close == close.rolling(20, center=True).max()].values[:5]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=lags, y=tau, mode="markers", name="Tau",
-                            marker=dict(color=t["subtext"], size=4)))
-    fit_line = np.exp(intercept) * lags ** slopes
-    fig.add_trace(go.Scatter(x=lags, y=fit_line, mode="lines", name="Fit",
-                            line=dict(color=t["accent"], width=2)))
-    fig.update_layout(xaxis_type="log", yaxis_type="log")
-    return fig_update(fig, t, f"Hurst Exponent (H={hurst:.3f})")
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    for i, p in enumerate(peaks[1:], 1):
+        fig.add_vline(x=p, line_dash="dot", line_color=t["purple"], opacity=0.5)
+    return fig_update(fig, t, "Fibonacci Time Zones")
+
+
+def plot_gann_fan(df, close_col, t):
+    close = df[close_col].dropna()
+    if len(close) < 50:
+        return None
+    start_price = close.iloc[0]
+    end_price = close.iloc[-1]
+    start_idx = 0
+    end_idx = len(close) - 1
+    diff = end_price - start_price
+    duration = end_idx - start_idx
+    angles = [1, 2, 3, 4]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    for angle in angles:
+        slope = (diff / duration) * angle
+        line_y = [start_price + slope * i for i in range(duration)]
+        fig.add_trace(go.Scatter(y=line_y, mode="lines", name=f"Gann {angle}x1",
+                                line=dict(color=t["cyan"], width=1)))
+    return fig_update(fig, t, "Gann Fan")
+
+
+def plot_vortex_indicator(df, col_map, t):
+    if not all(k in col_map for k in ["high", "low", "close"]):
+        return None
+    high = df[col_map["high"]]
+    low = df[col_map["low"]]
+    close = df[col_map["close"]]
+    vm_plus = abs(high - low.shift(1))
+    vm_minus = abs(low - high.shift(1))
+    tr = np.maximum(high - low, np.maximum(abs(high - close.shift(1)), abs(low - close.shift(1))))
+    sum_vm_plus = vm_plus.rolling(14).sum()
+    sum_vm_minus = vm_minus.rolling(14).sum()
+    sum_tr = tr.rolling(14).sum()
+    vi_plus = sum_vm_plus / sum_tr
+    vi_minus = sum_vm_minus / sum_tr
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=vi_plus, mode="lines", name="VI+",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_trace(go.Scatter(y=vi_minus, mode="lines", name="VI-",
+                            line=dict(color=t["red"], width=2)))
+    return fig_update(fig, t, "Vortex Indicator")
+
+
+def plot_trend_intensity(df, close_col, t, window=30):
+    close = df[close_col].dropna()
+    if len(close) < window:
+        return None
+    sma = close.rolling(window).mean()
+    above = (close > sma).sum()
+    intensity = above / window * 100
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=intensity, mode="lines", name="Trend Intensity",
+                            line=dict(color=t["cyan"], width=2),
+                            fill="tozeroy", fillcolor=f"rgba(6, 182, 212, 0.2)"))
+    fig.add_hline(y=50, line_dash="dash", line_color=t["subtext"])
+    fig.add_hline(y=80, line_dash="dot", line_color=t["green"])
+    fig.add_hline(y=20, line_dash="dot", line_color=t["red"])
+    return fig_update(fig, t, f"Trend Intensity ({window}d)")
+
+
+def plot_dpo(df, close_col, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    ma = close.rolling(window).mean()
+    dpo = close.shift(window // 2 + 1) - ma
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=close, mode="lines", name="Close",
+                            line=dict(color=t["subtext"], width=1)))
+    fig.add_trace(go.Scatter(y=dpo, mode="lines", name="DPO",
+                            line=dict(color=t["purple"], width=2)))
+    return fig_update(fig, t, f"Detrended Price Osc ({window})")
+
+
+def plot_dpo_new(df, close_col, t, window=20):
+    close = df[close_col].dropna()
+    if len(close) < window * 2:
+        return None
+    ma = close.rolling(window).mean()
+    dpo = close.shift(window // 2 + 1) - ma
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=dpo, mode="lines", name="DPO",
+                            line=dict(color=t["purple"], width=2)))
+    fig.add_hline(y=0, line_color=t["subtext"])
+    return fig_update(fig, t, f"Detrended Price Osc ({window})")
+
+
+def plot_aroon_new(df, close_col, t, window=25):
+    close = df[close_col]
+    if len(close) < window:
+        return None
+    aroon_down = close.rolling(window + 1).apply(lambda x: x.argmin(), raw=True)
+    aroon_up = close.rolling(window + 1).apply(lambda x: x.argmax(), raw=True)
+    aroon_osc = aroon_up - aroon_down
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(y=aroon_up, mode="lines", name="Aroon Up",
+                            line=dict(color=t["green"], width=2)))
+    fig.add_trace(go.Scatter(y=aroon_down, mode="lines", name="Aroon Down",
+                            line=dict(color=t["red"], width=2)))
+    fig.add_trace(go.Scatter(y=aroon_osc, mode="lines", name="Aroon Osc",
+                            line=dict(color=t["cyan"], width=1)))
+    return fig_update(fig, t, f"Aroon Indicator ({window})")
+
+
+# ─────────────────────────────────────────────
+# SUMMARY STATISTICS
 
 
 def plot_auto_correlation(df, close_col, t, max_lag=50):
@@ -3227,8 +3448,9 @@ def main():
                 st.plotly_chart(kama_fig, use_container_width=True)
             with c16:
                 if close_col:
-                    aroon_fig = plot_aroon(df_primary[close_col], t)
-                    st.plotly_chart(aroon_fig, use_container_width=True)
+                    aroon_fig = plot_aroon_new(df_primary, close_col, t)
+                    if aroon_fig:
+                        st.plotly_chart(aroon_fig, use_container_width=True)
 
             c17, c18 = st.columns(2)
             with c17:
@@ -3242,8 +3464,9 @@ def main():
 
             c19, c20 = st.columns(2)
             with c19:
-                dpo_fig = plot_dpo(df_primary, date_col, close_col, t)
-                st.plotly_chart(dpo_fig, use_container_width=True)
+                dpo_fig = plot_dpo_new(df_primary, close_col, t)
+                if dpo_fig:
+                    st.plotly_chart(dpo_fig, use_container_width=True)
             with c20:
                 tema_fig = plot_tema(df_primary, date_col, close_col, t)
                 st.plotly_chart(tema_fig, use_container_width=True)
@@ -3296,67 +3519,62 @@ def main():
         if close_col is None or date_col is None:
             st.info("Close/Date columns required.")
         else:
-            st.markdown(f"<div class='section-header'>Pivot Reversal</div>", unsafe_allow_html=True)
-            st.plotly_chart(plot_pivot_reversal(df_primary, close_col, date_col, t), use_container_width=True)
-
-            st.markdown(f"<div class='section-header'>VWAP vs Close</div>", unsafe_allow_html=True)
-            vwap_fig = plot_volume_weighted_price(df_primary, close_col, vol_col, t)
-            if vwap_fig:
-                st.plotly_chart(vwap_fig, use_container_width=True)
-
-            st.markdown(f"<div class='section-header'>Rainbow Chart</div>", unsafe_allow_html=True)
-            st.plotly_chart(plot_rainbow_chart(df_primary, close_col, t), use_container_width=True)
-
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"<div class='section-header'>Linear Regression</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_linear_regression(df_primary, date_col, close_col, t), use_container_width=True)
-            with c2:
-                st.markdown(f"<div class='section-header'>Polynomial Trend</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_poly_trend(df_primary, close_col, t), use_container_width=True)
-
             if all(k in col_map for k in ["high", "low", "close"]):
                 st.markdown(f"<div class='section-header'>Ichimoku Cloud</div>", unsafe_allow_html=True)
                 ichi_fig = plot_ichimoku_cloud(df_primary, col_map, t)
                 if ichi_fig:
                     st.plotly_chart(ichi_fig, use_container_width=True)
 
-            c3, c4 = st.columns(2)
-            with c3:
+            c1, c2 = st.columns(2)
+            with c1:
                 st.markdown(f"<div class='section-header'>Elliott Wave</div>", unsafe_allow_html=True)
                 st.plotly_chart(plot_elliott_wave(df_primary, close_col, t), use_container_width=True)
+            with c2:
+                st.markdown(f"<div class='section-header'>Demark Cycles</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_demark_cycles(df_primary, close_col, t), use_container_width=True)
+
+            c3, c4 = st.columns(2)
+            with c3:
+                st.markdown(f"<div class='section-header'>Neo Wave Theory</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_wave_theory(df_primary, close_col, t), use_container_width=True)
             with c4:
-                st.markdown(f"<div class='section-header'>Hurst Exponent</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_hurst_exponent(df_primary, close_col, t), use_container_width=True)
+                st.markdown(f"<div class='section-header'>Price Envelope</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_price_envelope(df_primary, close_col, t), use_container_width=True)
 
             c5, c6 = st.columns(2)
             with c5:
-                st.markdown(f"<div class='section-header'>Autocorrelation</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_auto_correlation(df_primary, close_col, t), use_container_width=True)
+                st.markdown(f"<div class='section-header'>Murrey Math</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_murrey_math(df_primary, close_col, t), use_container_width=True)
             with c6:
-                st.markdown(f"<div class='section-header'>Seasonality</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_seasonality(df_primary, date_col, close_col, t), use_container_width=True)
-
-            if date_col:
-                st.markdown(f"<div class='section-header'>Hourly Heatmap</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_hourly_heatmap(df_primary, date_col, close_col, t), use_container_width=True)
+                st.markdown(f"<div class='section-header'>Standard Pivot Points</div>", unsafe_allow_html=True)
+                pp_fig = plot_pivot_points_standard(df_primary, col_map, t)
+                if pp_fig:
+                    st.plotly_chart(pp_fig, use_container_width=True)
 
             c7, c8 = st.columns(2)
             with c7:
-                st.markdown(f"<div class='section-header'>Volatility Regime</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_volatility_regime(df_primary, close_col, t), use_container_width=True)
+                st.markdown(f"<div class='section-header'>Fibonacci Arc</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_fibonacci_arc(df_primary, close_col, t), use_container_width=True)
             with c8:
-                st.markdown(f"<div class='section-header'>Momentum Oscillator</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_momentum_oscillator(df_primary, close_col, t), use_container_width=True)
+                st.markdown(f"<div class='section-header'>Fibonacci Time Zones</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_fibonacci_timezones(df_primary, close_col, date_col, t), use_container_width=True)
 
-            if vol_col:
-                c9, c10 = st.columns(2)
-                with c9:
-                    st.markdown(f"<div class='section-header'>Volume Pressure</div>", unsafe_allow_html=True)
-                    st.plotly_chart(plot_volume_pressure(df_primary, close_col, vol_col, t), use_container_width=True)
-                with c10:
-                    st.markdown(f"<div class='section-header'>Order Flow</div>", unsafe_allow_html=True)
-                    st.plotly_chart(plot_order_flow(df_primary, close_col, vol_col, t), use_container_width=True)
+            st.markdown(f"<div class='section-header'>Gann Fan</div>", unsafe_allow_html=True)
+            st.plotly_chart(plot_gann_fan(df_primary, close_col, t), use_container_width=True)
+
+            if all(k in col_map for k in ["high", "low", "close"]):
+                st.markdown(f"<div class='section-header'>Vortex Indicator</div>", unsafe_allow_html=True)
+                vi_fig = plot_vortex_indicator(df_primary, col_map, t)
+                if vi_fig:
+                    st.plotly_chart(vi_fig, use_container_width=True)
+
+            c9, c10 = st.columns(2)
+            with c9:
+                st.markdown(f"<div class='section-header'>Trend Intensity</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_trend_intensity(df_primary, close_col, t), use_container_width=True)
+            with c10:
+                st.markdown(f"<div class='section-header'>Detrended Price Osc</div>", unsafe_allow_html=True)
+                st.plotly_chart(plot_dpo_new(df_primary, close_col, t), use_container_width=True)
 
     # ── 7. RISK & OUTLIERS ────────────────────
     with tabs[7]:
