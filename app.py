@@ -2428,10 +2428,6 @@ def plot_keltner_squeeze(df, close_col, col_map, t):
     return fig_update(fig, t, "Keltner Squeeze")
 
 
-def plot_常(t):
-    return None
-
-
 def plot_parabolic_sar_new(df, col_map, t, af=0.02, max_af=0.2):
     if not all(k in col_map for k in ["high", "low", "close"]):
         return None
@@ -2673,7 +2669,7 @@ def plot_ulcer_index(df, close_col, t, period=14):
     ulcer = np.sqrt((pct_drawdown ** 2).rolling(period).mean())
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=ulcer, mode="lines", name="Ulcer Index",
-                            line=dict(color=t["red"], width=2))
+                            line=dict(color=t["red"], width=2)))
     return fig_update(fig, t, f"Ulcer Index ({period})")
 
 
@@ -2978,7 +2974,7 @@ def plot_momentum_divergence(df, close_col, vol_col, t, period=20):
     divergence = price_mom - vol_mom
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=divergence, mode="lines", name="Momentum Div",
-                            line=dict(color=t["red"], width=2))
+                            line=dict(color=t["red"], width=2)))
     fig.add_hline(y=0, line_color=t["subtext"])
     return fig_update(fig, t, f"Momentum Divergence ({period})")
 
@@ -2993,7 +2989,7 @@ def plot_momentum_divergence_new(df, close_col, vol_col, t, period=20):
     divergence = price_mom - vol_mom
     fig = go.Figure()
     fig.add_trace(go.Scatter(y=divergence, mode="lines", name="Momentum Div",
-                            line=dict(color=t["red"], width=2))
+                            line=dict(color=t["red"], width=2)))
     fig.add_hline(y=0, line_color=t["subtext"])
     return fig_update(fig, t, f"Momentum Divergence ({period})")
 
