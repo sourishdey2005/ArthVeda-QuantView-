@@ -2823,19 +2823,6 @@ def plot_stochastic_momentum(df, close_col, col_map, t, k_period=5, d_period=3):
     return fig_update(fig, t, f"Stochastic Momentum")
 
 
-def plot_dpo_new(df, date_col, close_col, t, window=20):
-    close = df[close_col].dropna()
-    if len(close) < window * 2:
-        return None
-    ma = close.rolling(window).mean()
-    dpo = close.shift(window // 2 + 1) - ma
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(y=dpo, mode="lines", name="DPO",
-                            line=dict(color=t["purple"], width=2)))
-    fig.add_hline(y=0, line_color=t["subtext"])
-    return fig_update(fig, t, f"Detrended Price Oscillator ({window})")
-
-
 def plot_elder_ray(df, close_col, col_map, t):
     if not all(k in col_map for k in ["high", "low"]):
         return None
