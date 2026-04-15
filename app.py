@@ -3531,7 +3531,7 @@ def main():
                 st.plotly_chart(plot_elliott_wave(df_primary, close_col, t), use_container_width=True)
             with c2:
                 st.markdown(f"<div class='section-header'>Demark Cycles</div>", unsafe_allow_html=True)
-                st.plotly_chart(plot_demark_cycles(df_primary, close_col, t), use_container_width=True)
+                st.plotly_chart(plot_demark_cycles(df_primary, close_col, col_map, t), use_container_width=True)
 
             c3, c4 = st.columns(2)
             with c3:
